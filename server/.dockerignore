@@ -1,0 +1,20 @@
+# Git
+.git
+
+# Virtual Environment
+/env
+/venv
+
+*.pyc
+**/__pycache__
+
+**/.terraform
+
+# GPG-created files
+**/gpg/.gnupg/*
+!**/gpg/.gnupg/gpg.conf
+
+# Node modules
+ui/node_modules
+ui/dist
+ui/.angular

@@ -1,0 +1,57 @@
+version: '3'
+services:
+  nginx: 
+    image : nginx:latest 
+    ports : 
+        - 8000:8000
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/nginx.conf
+    networks:
+      - keg-volume-monitor-net
+    depends_on:
+      - "web"
+  web:
+    image: keg-volume-monitor:dev
+    expose:
+      - 5000
+    ports:
+      - 5000
+    env_file:
+      - ./docker-local.env
+      - ".env"
+    #depends_on:
+      #- postgres
+      # - db-data-seed
+    networks:
+      - keg-volume-monitor-net
+    volumes:
+      - ./my-config.json:/keg-volume-monitor/config/config.json
+    stdin_open: true
+    tty: true
+  # postgres:
+  #   image: postgres:17-alpine
+  #   expose:
+  #     - 5432
+  #   ports:
+  #     - 5432:5432
+  #   networks:
+  #     - keg-volume-monitor-net
+  #   volumes:
+  #     - ./my-config.json:/keg-volume-monitor/config/config.json
+  #   env_file:
+  #     - ./docker-local.env
+  #     - ".env"
+  # db-data-seed:
+  #   image: keg-volume-monitor-db-seed:dev
+  #   depends_on:
+  #     - postgres
+  #   env_file:
+  #     - ./docker-local.env
+  #     - ".env"
+  #   volumes:
+  #     - ./my-config.json:/keg-volume-monitor/config/config.json
+  #   networks:
+  #     - keg-volume-monitor-net
+networks:
+  keg-volume-monitor-net:
+      
