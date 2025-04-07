@@ -8,6 +8,7 @@ from lib import logging
 from lib.config import Config
 
 from resources.devices import api as DevicesNS
+from resources.device_measurements import api as DeviceMeasurementsNS
 
 CONFIG = Config()
 CONFIG.setup(config_files=["default.json"])
@@ -39,7 +40,6 @@ app = Flask(__name__, static_folder='static', static_url_path='')
 # NOTE!  the root path handler much be regeistered BEFORE the flask-restx API object is initialized
 # to prevent it from being hijacked!  This method serves the UI content
 @app.route('/')
-@app.route('/home')
 def index():
     dir_path = os.path.join(os.getcwd(), STATIC_URL_PATH)
     return send_from_directory(dir_path, "index.html")
@@ -60,6 +60,7 @@ app.config.update(
 )
 
 api.add_namespace(DevicesNS, path=f"{API_PREFIX}/devices")
+api.add_namespace(DeviceMeasurementsNS, path=f"{API_PREFIX}/devices/<device_id>/measurements")
 
 @api.route(f"{API_PREFIX}/ping")
 class Ping(Resource):

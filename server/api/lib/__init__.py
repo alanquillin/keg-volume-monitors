@@ -23,29 +23,3 @@ class ThreadSafeSingleton(type):
                 if cls not in cls._instances:
                     cls._instances[cls] = super(ThreadSafeSingleton, cls).__call__(*args, **kwargs)
         return cls._instances[cls]
-
-
-class UsefulEnum(Enum):
-    def __str__(self):  # pylint: disable=invalid-str-returned
-        return self.value
-
-    def __eq__(self, other):
-        if not isinstance(other, Enum):
-            return str(self) == other
-        return self.value == other.value  # pylint: disable=comparison-with-callable
-
-    def __hash__(self):
-        return hash(self.value)
-
-    @classmethod
-    def find(cls, value, raise_on_not_found=True, default=None):
-        try:
-            return cls(value)
-        except InvalidEnum:
-            if raise_on_not_found:
-                raise
-            return default
-
-    @classmethod
-    def _missing_(cls, value):
-        raise InvalidEnum(f"{value} is not a valid {cls.__name__}")

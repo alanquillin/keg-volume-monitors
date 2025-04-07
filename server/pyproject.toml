@@ -60,7 +60,10 @@ python = "^3.11"
 sqlalchemy = "^2.0.40"
 python-dateutil = "^2.9.0"
 gevent = "^24.11.1"
-
+alembic = "^1.15.2"
+#psycopg2-binary = "^2.9.9"
+psycopg2-binary = "2.9.9" #pinned cause there was build errors for 2.9.10
+simplejson = "^3.20.1"
 
 [tool.poetry.dev-dependencies]
 bandit = "^1.6.2"

@@ -13,6 +13,9 @@
     "base_url": "https://api.particle.io"
   },
   "general": {
-    "preferred_vol_unit": "gal"
+    "preferred_vol_units": {
+      "flow": "ml",
+      "weight": "gal"
+    }
   }
 }

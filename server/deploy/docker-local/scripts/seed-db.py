@@ -1,16 +1,145 @@
 #!/usr/bin/env python3
 
 import argparse
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 import os
 import sys
 from time import sleep
 
+from db import Base, session_scope, devices, device_measurements
+from lib.config import Config
+
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.sql import text
 
 #from db import Base
+
+DEVICE_ID_1 = "022041b5-89af-45ee-87ef-135f68c25f3f"
+DEVICE_ID_2 = "13353ea9-bf7f-41d3-bd82-97262bf6a97a"
+DEVICES = [
+    {
+        "id": DEVICE_ID_1,
+        "name": "Photon - 1",
+        "manufacturer": "particle",
+        "manufacturer_id": "31003c001747343337363432",
+        "device_type": "weight"
+    },
+    {
+        "id": DEVICE_ID_2,
+        "name": "Photon2 - 1",
+        "manufacturer": "particle",
+        "manufacturer_id": "0a10aced202194944a054e68",
+        "device_type": "flow"
+    }
+]
+
+MEASUREMENT_ID_1 = "d4dafc76-94c2-40fd-af8a-93fdacc74dff"
+MEASUREMENT_ID_2 = "c5cac4e9-495a-4a33-b781-0f43cc34482d"
+MEASUREMENT_ID_3 = "9348ac29-af33-404f-affd-e60a3da92d8a"
+MEASUREMENT_ID_4 = "9a01c621-edb9-4524-9309-6e3ce8db90cf"
+MEASUREMENT_ID_5 = "46996c5b-e7ba-444d-a23a-fffe8dd07f59"
+MEASUREMENT_ID_6 = "f4117dd9-0a54-4a40-ae24-4593eb22a704"
+MEASUREMENT_ID_7 = "b1d00235-54d7-45f0-9d08-2ac45ce6e5db"
+MEASUREMENT_ID_8 = "84e31930-3461-41b0-a89a-8169a1e13b20"
+MEASUREMENT_ID_9 = "081e19b4-73ff-4a4c-9a45-fdf3fc512da7"
+MEASUREMENT_ID_10 = "4da763d8-65df-4f78-a59f-bb855b4992ce"
+MEASUREMENT_ID_11 = "917f1581-0d66-4e9e-924a-37a54c9126f1"
+MEASUREMENT_ID_12 = "090c35e1-01c7-4099-8b6e-478280d41f98"
+MEASUREMENT_ID_13 = "78b30327-13de-4790-9bd4-c403266e4ff1"
+MEASUREMENTS = [
+    {
+        "id": MEASUREMENT_ID_1,
+        "device_id": DEVICE_ID_1,
+        "measurement": 23220.0,
+        "unit": "g",
+        "taken_on": datetime(2025, 4, 3, 6, 32, 00, tzinfo=timezone.utc)
+    },
+    {
+        "id": MEASUREMENT_ID_2,
+        "device_id": DEVICE_ID_1,
+        "measurement": 6891.3,
+        "unit": "g",
+        "taken_on": datetime(2025, 4, 3, 6, 32, 00, tzinfo=timezone.utc)
+    },
+    {
+        "id": MEASUREMENT_ID_3,
+        "device_id": DEVICE_ID_1,
+        "measurement": 4600.0,
+        "unit": "g",
+        "taken_on": datetime(2025, 4, 3, 6, 32, 00, tzinfo=timezone.utc)
+    },
+    {
+        "id": MEASUREMENT_ID_4,
+        "device_id": DEVICE_ID_1,
+        "measurement": 19222.9,
+        "unit": "g",
+        "taken_on": datetime(2025, 4, 3, 6, 32, 00, tzinfo=timezone.utc)
+    },
+    {
+        "id": MEASUREMENT_ID_5,
+        "device_id": DEVICE_ID_1,
+        "measurement": 17900.8,
+        "unit": "g",
+        "taken_on": datetime(2025, 4, 3, 6, 32, 00, tzinfo=timezone.utc)
+    },
+    {
+        "id": MEASUREMENT_ID_6,
+        "device_id": DEVICE_ID_1,
+        "measurement": 9000.0,
+        "unit": "g",
+        "taken_on": datetime(2025, 4, 3, 6, 32, 00, tzinfo=timezone.utc)
+    },
+    {
+        "id": MEASUREMENT_ID_7,
+        "device_id": DEVICE_ID_1,
+        "measurement": 12000.0,
+        "unit": "g",
+        "taken_on": datetime(2025, 4, 3, 6, 32, 00, tzinfo=timezone.utc)
+    },
+    {
+        "id": MEASUREMENT_ID_8,
+        "device_id": DEVICE_ID_1,
+        "measurement": 31567.5,
+        "unit": "g",
+        "taken_on": datetime(2025, 4, 3, 6, 32, 00, tzinfo=timezone.utc)
+    },
+    {
+        "id": MEASUREMENT_ID_9,
+        "device_id": DEVICE_ID_2,
+        "measurement": 434.0,
+        "unit": "ml",
+        "taken_on": datetime(2025, 4, 3, 6, 32, 00, tzinfo=timezone.utc)
+    },
+    {
+        "id": MEASUREMENT_ID_10,
+        "device_id": DEVICE_ID_2,
+        "measurement": 18943.1,
+        "unit": "ml",
+        "taken_on": datetime(2025, 4, 3, 6, 32, 00, tzinfo=timezone.utc)
+    },
+    {
+        "id": MEASUREMENT_ID_11,
+        "device_id": DEVICE_ID_2,
+        "measurement": 32.2,
+        "unit": "ml",
+        "taken_on": datetime(2025, 4, 3, 6, 32, 00, tzinfo=timezone.utc)
+    },
+    {
+        "id": MEASUREMENT_ID_12,
+        "device_id": DEVICE_ID_2,
+        "measurement": 32678.8,
+        "unit": "ml",
+        "taken_on": datetime(2025, 4, 3, 6, 32, 00, tzinfo=timezone.utc)
+    },
+    {
+        "id": MEASUREMENT_ID_13,
+        "device_id": DEVICE_ID_2,
+        "measurement": 1200,
+        "unit": "ml",
+        "taken_on": datetime(2025, 4, 3, 6, 32, 00, tzinfo=timezone.utc)
+    }
+]
 
 def seed_db(db_session, db, items, pk="id"):
     for item in items:
@@ -57,7 +186,6 @@ if __name__ == "__main__":
     logger.debug("db name: %s", config.get("db.name"))
     logger.debug("db password: %s", config.get("db.password"))
 
-
     with session_scope(config) as db_session:
         while True:
             try:
@@ -69,3 +197,6 @@ if __name__ == "__main__":
                 sleep(3)
 
         logger.debug("Creating database schema and seeding with data")
+
+        seed_db(db_session, devices.Devices, DEVICES)
+        seed_db(db_session, device_measurements.DeviceMeasurements, MEASUREMENTS)

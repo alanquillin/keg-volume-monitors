@@ -1,17 +1,25 @@
+from db import session_scope
+from db.devices import Devices as DevicesDB
+
 from resources import BaseResource
-from flask_restx import Namespace, Resource, fields
+from flask_restx import Namespace, Resource, fields, reqparse, inputs
 
 api = Namespace('devices', description='Manage devices')
 
-device_mod = api.model('Device', {
-    'id': fields.String(required=True, description='The id of the device'),
-    'name': fields.String(required=True, description='The friendly name of the device'),
-    'type': fields.String(required=True, description='The type of device')
-})
+DEVICE_TYPES = ["weight", "flow"]
 
-TEST_DEVICES = [
-    {'id': 'abc123', 'name': 'my test device', 'type': 'weight'},
-]
+IN_FIELDS = {
+    'name': fields.String(required=True, description='The friendly name of the device'),
+    'manufacturer_id': fields.String(required=True, description='The manufacturers Id for the device'),
+    'device_type': fields.String(required=True, description='The type of device: Options: [weight, flow]')
+    # 'meta': fields.String(required=False, description='Optional metadata for the device')
+}
+
+new_device_mod = api.model('NewDevice', IN_FIELDS)
+device_mod = api.model('Device', {
+        'id': fields.String(required=True, description='The id of the device', readonly=True),
+        'manufacturer': fields.String(required=True, description='The manufacturer of the device')
+    } | IN_FIELDS)
 
 @api.route('/')
 class Devices(BaseResource):
@@ -21,7 +29,31 @@ class Devices(BaseResource):
     @api.doc('list_devices')
     @api.marshal_list_with(device_mod)
     def get(self):
-        return TEST_DEVICES
+        d = []
+        with session_scope(self.config) as db_session:
+            devices = DevicesDB.query(db_session)
+            if devices:
+                for dev in devices:
+                    d.append(dev.to_dict())
+        return d
+    
+    @api.doc('create_device')
+    @api.expect(new_device_mod, validate=True)
+    @api.marshal_list_with(device_mod, code=201)
+    def post(self):
+        with session_scope(self.config) as db_session:
+            data = api.payload
+            data["manufacturer"] = "Particle"
+
+            existing_dev = DevicesDB.get_by_manufacturer_id(db_session, data["manufacturer"], data["manufacturer_id"])
+            if existing_dev:
+                api.abort(400, "Device already exists")
+
+            dev_type = data.get("device_type", "unkown").lower()
+            if dev_type not in DEVICE_TYPES:
+                api.abort(400, f"Invalid device type '{dev_type}'.  Supported types are: [weight, flow]")
+            dev = DevicesDB.create(db_session, **data)
+            return dev.to_dict()
 
 @api.route('/<id>')
 @api.param('id', 'The device id')
@@ -33,7 +65,48 @@ class Device(BaseResource):
     @api.doc('get_device')
     @api.marshal_with(device_mod)
     def get(self, id):
-        for dev in TEST_DEVICES:
-            if dev['id'] == id:
-                return dev
+        parser = reqparse.RequestParser()
+        parser.add_argument('search_by_manufacturer_id', type=inputs.boolean, help='When true, the id field will represent the manufacturer_id', location='args')
+        args = parser.parse_args()
+
+        with session_scope(self.config) as db_session:
+            dev = None
+            if args.get("search_by_manufacturer_id", False):
+                devs = DevicesDB.get_by_manufacturer_id(db_session, "Particle", id)
+                if devs:
+                    dev = devs[0]
+            else:
+                dev = DevicesDB.get_by_pkey(db_session, id)
+            if dev:
+                return dev.to_dict()
         api.abort(404)
+
+    @api.doc('patch_device')
+    @api.expect(new_device_mod, validate=False)
+    @api.marshal_list_with(device_mod, code=201)
+    def patch(self, id):
+        with session_scope(self.config) as db_session:
+            dev = DevicesDB.get_by_pkey(db_session, id)
+            if not dev:
+                api.abort(404)
+            data = api.payload
+            keys = data.keys()
+            if "manufacturer" in keys:
+                manu = data.get("manufacturer")
+                if manu != "Particle":
+                    api.abort(400, f"Invalid manufacturer '{manu}'.  Currently only Particle devices are supported.")
+            if "device_type" in keys:
+                dev_type = data.get("device_type", "unkown").lower()
+                if dev_type not in DEVICE_TYPES:
+                    api.abort(400, f"Invalid device type '{dev_type}'.  Supported types are: [weight, flow]")
+            dev = DevicesDB.update(db_session, id, **data)
+            return dev.to_dict()
+        
+    @api.doc('delete_device')
+    def delete(self, id):
+        with session_scope(self.config) as db_session:
+            dev = DevicesDB.get_by_pkey(db_session, id)
+            if not dev:
+                api.abort(404)
+            DevicesDB.delete(db_session, id)
+            return True

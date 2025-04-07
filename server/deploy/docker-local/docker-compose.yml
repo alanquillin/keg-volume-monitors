@@ -1,4 +1,4 @@
-version: '3'
+version: '.8'
 services:
   nginx: 
     image : nginx:latest 
@@ -19,39 +19,48 @@ services:
     env_file:
       - ./docker-local.env
       - ".env"
-    #depends_on:
-      #- postgres
-      # - db-data-seed
+    depends_on:
+      postgres:
+        condition: service_healthy
+      db-data-seed:
+        condition: service_completed_successfully
     networks:
       - keg-volume-monitor-net
     volumes:
       - ./my-config.json:/keg-volume-monitor/config/config.json
     stdin_open: true
     tty: true
-  # postgres:
-  #   image: postgres:17-alpine
-  #   expose:
-  #     - 5432
-  #   ports:
-  #     - 5432:5432
-  #   networks:
-  #     - keg-volume-monitor-net
-  #   volumes:
-  #     - ./my-config.json:/keg-volume-monitor/config/config.json
-  #   env_file:
-  #     - ./docker-local.env
-  #     - ".env"
-  # db-data-seed:
-  #   image: keg-volume-monitor-db-seed:dev
-  #   depends_on:
-  #     - postgres
-  #   env_file:
-  #     - ./docker-local.env
-  #     - ".env"
-  #   volumes:
-  #     - ./my-config.json:/keg-volume-monitor/config/config.json
-  #   networks:
-  #     - keg-volume-monitor-net
+  postgres:
+    image: postgres:17-alpine
+    expose:
+      - 5432
+    ports:
+      - 5432:5432
+    networks:
+      - keg-volume-monitor-net
+    volumes:
+      - ./my-config.json:/keg-volume-monitor/config/config.json
+    env_file:
+      - ./docker-local.env
+      - ".env"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 30s
+      timeout: 60s
+      retries: 5
+      start_period: 80s
+  db-data-seed:
+    image: keg-volume-monitor-db-seed:dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - ./docker-local.env
+      - ".env"
+    volumes:
+      - ./my-config.json:/keg-volume-monitor/config/config.json
+    networks:
+      - keg-volume-monitor-net
 networks:
   keg-volume-monitor-net:
       

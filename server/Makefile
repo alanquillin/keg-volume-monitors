@@ -49,10 +49,6 @@ ifeq ("$(wildcard deploy/docker-local/my-config.json)","")
     $(shell echo '{}' >> deploy/docker-local/my-config.json)
 endif
 
-ifeq ("$(wildcard deploy/docker-local/uploads)","")
-    $(shell mkdir deploy/docker-local/uploads && chmod 777 deploy/docker-local/uploads)
-endif
-
 
 ifeq ($(TAG_LATEST),true)
 override DOCKER_BUILD_ARGS += -t $(IMAGE_REPOSITORY)/$(REPOSITORY_IMAGE):latest
@@ -148,8 +144,5 @@ clean-seed-image:
 
 clean-images: clean-image clean-seed-image
 
-clean-local-uploads:
-	rm -r ./deploy/docker-local/uploads/*
-
-clean-all: clean clean-images clean-local-uploads
+clean-all: clean clean-images
 
