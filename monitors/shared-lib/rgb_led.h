@@ -1,5 +1,5 @@
-#ifndef KEG_VOL_MON_WEIGHT_RGB_LED
-#define KEG_VOL_MON_WEIGHT_RGB_LED
+#ifndef _KEG_VOL_MON_RGB_LED_
+#define _KEG_VOL_MON_RGB_LED_
 
 #include "Particle.h"
 
