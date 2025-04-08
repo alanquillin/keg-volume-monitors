@@ -55,6 +55,36 @@ class Devices(BaseResource):
             dev = DevicesDB.create(db_session, **data)
             return dev.to_dict()
 
+@api.route('/find')
+@api.response(404, 'Device not found')
+class FindDevice(BaseResource):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+    
+    @api.doc('find_device')
+    @api.param('manufacturer_id', 'The device manufacturer id', _in="query")
+    @api.param('manufacturer', 'The device manufacturer.  Currently only supports "Particle"', _in="query")
+    @api.marshal_with(device_mod)
+    def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('manufacturer_id', location='args', required=True)
+        parser.add_argument('manufacturer', location='args')
+        args = parser.parse_args()
+        self.logger.debug(f"args: {args}")
+        
+        manufacturer = args.get("manufacturer")
+        manufacturer_id = args.get("manufacturer_id")
+        if not manufacturer:
+            manufacturer = "Particle"
+        elif manufacturer.lower() != "particle":
+            api.abort(400, "Invalid manufacturer.  Currently only 'Particle' is supported")
+
+        with session_scope(self.config) as db_session:
+            devs = DevicesDB.get_by_manufacturer_id(db_session, manufacturer, manufacturer_id)
+            if devs:
+                return [d.to_dict() for d in devs]
+        api.abort(404)
+
 @api.route('/<id>')
 @api.param('id', 'The device id')
 @api.response(404, 'Device not found')
@@ -65,18 +95,8 @@ class Device(BaseResource):
     @api.doc('get_device')
     @api.marshal_with(device_mod)
     def get(self, id):
-        parser = reqparse.RequestParser()
-        parser.add_argument('search_by_manufacturer_id', type=inputs.boolean, help='When true, the id field will represent the manufacturer_id', location='args')
-        args = parser.parse_args()
-
         with session_scope(self.config) as db_session:
-            dev = None
-            if args.get("search_by_manufacturer_id", False):
-                devs = DevicesDB.get_by_manufacturer_id(db_session, "Particle", id)
-                if devs:
-                    dev = devs[0]
-            else:
-                dev = DevicesDB.get_by_pkey(db_session, id)
+            dev = DevicesDB.get_by_pkey(db_session, id)
             if dev:
                 return dev.to_dict()
         api.abort(404)
