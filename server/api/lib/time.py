@@ -18,3 +18,7 @@ def utcnow_aware():
     """Return an aware datetime in UTC."""
 
     return datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc)
+
+def utcfromtimestamp_aware(timestamp):
+
+    return datetime.fromtimestamp(timestamp, datetime.timezone.utc)

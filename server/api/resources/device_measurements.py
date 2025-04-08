@@ -3,24 +3,25 @@ from datetime import datetime
 from db import session_scope
 from db.devices import Devices as DevicesDB
 from db.device_measurements import DeviceMeasurements as DeviceMeasurementsDB
-from lib.time import utcnow_aware
+from lib.time import utcnow_aware, utcfromtimestamp_aware
 from resources import BaseResource
 
 from flask_restx import Namespace, Resource, fields
 
 api = Namespace('device_measurements', description='Manage Device Measurements')
 
-IN_FIELDS = {
+save_device_measurement_mod = api.model('SaveDeviceMeasurement', {
+    'm': fields.Float(required=True, description='The value of the taken measurement'),
+    'u': fields.String(required=False, description='The unit of the taken measurement.  If not provided, the unit the device was calibrated with is used, else the default unit for the given device type'),
+    "ts": fields.Integer(requires=False, description="The timestamp that the measurement was taken.  If not provided, the the timestamp fo the request is used.")
+})
+device_measurement_mod = api.model('DeviceMeasurement', {
+    'id': fields.String(required=True, description='The id of the device', readonly=True),
     'device_id': fields.String(required=True, description="The device Id"),
     'measurement': fields.Float(required=True, description='The value of the taken measurement'),
     'unit': fields.String(required=False, description='The unit of the taken measurement'),
     "taken_on": fields.DateTime(requires=False, description="The datetime that the measurement was taken.")
-}
-
-save_device_measurement_mod = api.model('SaveDeviceMeasurement', IN_FIELDS)
-device_measurement_mod = api.model('DeviceMeasurement', {
-        'id': fields.String(required=True, description='The id of the device', readonly=True)
-    } | IN_FIELDS)
+})
 
 @api.route('/')
 class DeviceMeasurements(BaseResource):
@@ -49,12 +50,23 @@ class DeviceMeasurements(BaseResource):
 
             data = api.payload
             keys = data.keys()
-            if "unit" not in keys:
-                data["unit"] = self.config.get(f"general.preferred_vol_units.{dev.device_type}")
+            if "u" not in keys:
+                # TODO once the calibration units are stored for the device, we need to first try and use that and then fall back to the config default
+                data["u"] = self.config.get(f"general.preferred_vol_units.{dev.device_type}")
             else:
-                # TODO make sure the units are supprted
+                # TODO make sure the units are supported
                 pass
-            if "taken_on" not in keys:
-                data["taken_on"] = utcnow_aware()
-            meas = DeviceMeasurementsDB.create(db_session, **data)
+
+            measurement= {
+                "device_id": device_id,
+                "measurement": data["m"],
+                "unit": data["u"]
+            }
+
+            if "ts" in keys:
+                measurement["taken_on"] = utcfromtimestamp_aware(data["ts"])
+            else:
+                measurement["taken_on"] = utcnow_aware()
+            
+            meas = DeviceMeasurementsDB.create(db_session, **measurement)
             return meas.to_dict()
