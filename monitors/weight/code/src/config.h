@@ -1,9 +1,9 @@
-#ifndef KEG_VOL_MON_WEIGHT_CONFIG
-#define KEG_VOL_MON_WEIGHT_CONFIG
+#ifndef _KEG_VOL_MON_WEIGHT_CONFIG_
+#define _KEG_VOL_MON_WEIGHT_CONFIG_
 
 #include "Particle.h"
 
-#if (PLATFORM_ID == PLATFORM_PHOTON)
+#if (PLATFORM_ID == PLATFORM_PHOTON || PLATFORM_ID == PLATFORM_PHOTON_PRODUCTION)
     /*******************************
     Photon - prototype
     *******************************/
@@ -19,6 +19,8 @@
     const int RED_PIN = D2;
     const int GREEN_PIN = D1;
     const int BLUE_PIN = D0;
+
+    const String MODEL = "Photon";
 #endif
 
 #if (PLATFORM_ID == PLATFORM_P2)
@@ -28,6 +30,10 @@
     const int RED_PIN = D13;
     const int GREEN_PIN = D14;
     const int BLUE_PIN = D16;
+
+    const String MODEL = "Photon2";
 #endif
+
+const String MANUFACTURER = "Particle";
 
 #endif

@@ -3,6 +3,7 @@
 #include <HX711ADC.h>
 #include <math.h>
 #include "../../../shared-lib/rgb_led.h"
+#include "../../../shared-lib/service.h"
 
 // Run Setup code immediately.  This is enabled by befault in OS v6.2.0 and above
 #if (SYSTEM_VERSION < SYSTEM_VERSION_DEFAULT(6, 2, 0))
