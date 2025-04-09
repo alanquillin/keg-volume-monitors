@@ -21,15 +21,17 @@ DEVICES = [
     {
         "id": DEVICE_ID_1,
         "name": "Photon - 1",
-        "manufacturer": "particle",
-        "manufacturer_id": "31003c001747343337363432",
+        "chip_type": "particle",
+        "chip_id": "31003c001747343337363432",
+        "chip_model": "Photon",
         "device_type": "weight"
     },
     {
         "id": DEVICE_ID_2,
         "name": "Photon2 - 1",
-        "manufacturer": "particle",
-        "manufacturer_id": "0a10aced202194944a054e68",
+        "chip_type": "particle",
+        "chip_model": "Photon2",
+        "chip_id": "0a10aced202194944a054e68",
         "device_type": "flow"
     }
 ]

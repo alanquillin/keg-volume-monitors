@@ -1,8 +1,8 @@
 """initial migration
 
-Revision ID: 6ff9ce9efc61
+Revision ID: f1c1d00f792b
 Revises: 
-Create Date: 2025-04-07 15:54:13.526781+00:00
+Create Date: 2025-04-09 14:16:26.790555+00:00
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = '6ff9ce9efc61'
+revision = 'f1c1d00f792b'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -22,12 +22,13 @@ def upgrade():
     sa.Column('id', sa.UUID(), server_default=sa.text('uuid_generate_v4()'), nullable=False),
     sa.Column('name', sa.String(), nullable=False),
     sa.Column('device_type', sa.String(), nullable=False),
-    sa.Column('manufacturer', sa.String(), nullable=False),
-    sa.Column('manufacturer_id', sa.String(), nullable=False),
+    sa.Column('chip_type', sa.String(), nullable=False),
+    sa.Column('chip_id', sa.String(), nullable=False),
+    sa.Column('chip_model', sa.String(), nullable=True),
     sa.Column('meta', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_index('ix_sensor_manufacturer_and_manufacturer_id', 'devices', ['manufacturer', 'manufacturer_id'], unique=False)
+    op.create_index('ix_sensor_chip_type_and_chip_id', 'devices', ['chip_type', 'chip_id'], unique=False)
     op.create_table('device_measurements',
     sa.Column('id', sa.UUID(), server_default=sa.text('uuid_generate_v4()'), nullable=False),
     sa.Column('device_id', sa.UUID(), nullable=False),
@@ -47,6 +48,6 @@ def downgrade():
     op.drop_index('ix_ordered_device_measurements_by_device_id_and_measure', table_name='device_measurements')
     op.drop_index('ix_device_measurements_by_device_id', table_name='device_measurements')
     op.drop_table('device_measurements')
-    op.drop_index('ix_sensor_manufacturer_and_manufacturer_id', table_name='devices')
+    op.drop_index('ix_sensor_chip_type_and_chip_id', table_name='devices')
     op.drop_table('devices')
     # ### end Alembic commands ###

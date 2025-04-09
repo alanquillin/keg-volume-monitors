@@ -17,10 +17,10 @@ save_device_measurement_mod = api.model('SaveDeviceMeasurement', {
 })
 device_measurement_mod = api.model('DeviceMeasurement', {
     'id': fields.String(required=True, description='The id of the device', readonly=True),
-    'device_id': fields.String(required=True, description="The device Id"),
+    'deviceId': fields.String(required=True, description="The device Id"),
     'measurement': fields.Float(required=True, description='The value of the taken measurement'),
     'unit': fields.String(required=False, description='The unit of the taken measurement'),
-    "taken_on": fields.DateTime(requires=False, description="The datetime that the measurement was taken.")
+    "takenOn": fields.DateTime(requires=False, description="The datetime that the measurement was taken.")
 })
 
 @api.route('/')
@@ -31,13 +31,11 @@ class DeviceMeasurements(BaseResource):
     @api.doc('list_device_measurements')
     @api.marshal_list_with(device_measurement_mod)
     def get(self, device_id):
-        data = []
         with session_scope(self.config) as db_session:
             measurements = DeviceMeasurementsDB.query(db_session, device_id=device_id)
             if measurements:
-                for m in measurements:
-                    data.append(m.to_dict())
-        return data
+                return self.transform_response(measurements)
+        return []
     
     @api.doc('save_device_measurement')
     @api.expect(save_device_measurement_mod, validate=True)
@@ -69,4 +67,4 @@ class DeviceMeasurements(BaseResource):
                 measurement["taken_on"] = utcnow_aware()
             
             meas = DeviceMeasurementsDB.create(db_session, **measurement)
-            return meas.to_dict()
+            return self.transform_response(meas)

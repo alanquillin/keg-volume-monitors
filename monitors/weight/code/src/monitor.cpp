@@ -3,18 +3,25 @@
 #include <HX711ADC.h>
 #include <math.h>
 #include "../../../shared-lib/rgb_led.h"
-#include "../../../shared-lib/service.h"
+//#include "../../../shared-lib/service.h"
+#include "service.h"
 
+SYSTEM_MODE(SEMI_AUTOMATIC);
 // Run Setup code immediately.  This is enabled by befault in OS v6.2.0 and above
 #if (SYSTEM_VERSION < SYSTEM_VERSION_DEFAULT(6, 2, 0))
 SYSTEM_THREAD(ENABLED);
 #endif
 
+
 SerialLogHandler logHandler(LOG_LEVEL_ALL);
 
 HX711ADC scale(HX711_DOUT_PIN, HX711_SCK_PIN);		// parameter "gain" is omitted; the default value 128 is used by the library
 RGBLED led(RED_PIN, GREEN_PIN, BLUE_PIN);
+DataService dataService(SERVICE_ENABLED, "weight", HOSTNAME, PORT, false);
+device_data_t deviceData = {true};
 
+
+float LAST_MEASUREMENT = 0;
 bool BTN_PRESSED = false;
 unsigned long BTN_PRESSED_ON;
 bool CALIBRATION_MODE_ENABLED = false;
@@ -31,6 +38,13 @@ float get_calibration() {
     return cal;
 }
 
+// Puts the scale in calibration mode and resets.  Assumes the scale is clear or has the inital tare weight on
+/**
+ * @brief CLOUD FUNCTION CALLBACK - Performs a tare function
+ * 
+ * @param _ String: ignored and unused
+ * @return int 
+ */
 int tare(String _ = "") {
     scale.power_up();
     scale.tare();
@@ -39,7 +53,12 @@ int tare(String _ = "") {
     return 1;
 }
 
-// Puts the scale in calibration mode and resets.  Assumes the scale is clear or has the inital tare weight on
+/**
+ * @brief CLOUD FUNCTION CALLBACK - Performs a tare function, resets the calibration scale and puts the device in calibration mode
+ * 
+ * @param _ String: ignored and unused
+ * @return int 
+ */
 int init_calibration(String _ = "") {
     CALIBRATION_MODE_ENABLED = true;
     scale.set_scale();
@@ -48,6 +67,15 @@ int init_calibration(String _ = "") {
     return 1;
 }
 
+/**
+ * @brief CLOUD FUNCTION CALLBACK - Cancels calibration mode and resets the previous calibration scale value
+ * 
+ * @param _ String: ignored and unused
+ * @return int - A value of 1 is return to represent successfully cancellation of calibration mode
+ *      @error codes:
+ *          -1 - If the device is currently calibration
+ *          -2 - If there is no previous calibration value found.
+ */
 int cancel_calibration(String _ = "") {
     if (CALIBRATING) {
         return -1;
@@ -65,6 +93,13 @@ int cancel_calibration(String _ = "") {
     return 1;
 }
 
+/**
+ * @brief CLOUD FUNCTION CALLBACK - Resets the local EEPROM and restarts the system.
+ * 
+ * @param _ String: ignored and unused
+ * @return int 
+ */
+
 int cleanMemAndRestart(String _ = "") {
   EEPROM.clear();
   System.reset(2);
@@ -72,7 +107,7 @@ int cleanMemAndRestart(String _ = "") {
 }
 
 /**
- * CLOUD FUNCTION CALLBACK - Uses the provided known weight to calibrate the scale.  The weight unit is irrelevant 
+ * @brief CLOUD FUNCTION CALLBACK - Uses the provided known weight to calibrate the scale.  The weight unit is irrelevant 
  * and whatever weight you used will be used to provide wights with the same units.
  * 
  * Example:  You passed in the value of 4535.923 which represented the weight in gram, then the scale will provide units
@@ -118,6 +153,13 @@ int calibrate(String cal_weight_str) {
     return 1;
 }
 
+/**
+ * @brief CLOUD FUNCTION CALLBACK - Runs a quick visual test of the RGB LED.  The LED will cycle once from 
+ *      White->Red->Green->Blue for 2 seconds each.  
+ * 
+ * @param _ String: ignored and unused
+ * @return int 
+ */
 int test_leds(String _ = "") {
     if (CALIBRATING || CALIBRATION_MODE_ENABLED) {
         Log.error("Cannot run LED test as calibration is in process.");
@@ -129,16 +171,16 @@ int test_leds(String _ = "") {
     Log.info("Starting LED testing.");
     Log.info("Testing white");
     led.setColor(RGB_WHITE, false);
-    delay(1000);
+    delay(2000);
     Log.info("Testing red");
     led.setColor(RGB_RED, false);
-    delay(1000);
+    delay(2000);
     Log.info("Testing green");
     led.setColor(RGB_GREEN, false);
-    delay(1000);
+    delay(2000);
     Log.info("Testing blue");
     led.setColor(RGB_BLUE, false);
-    delay(1000);
+    delay(2000);
     Log.info("LED test complete");
     led.setColor(led.getCurrentColor());
     
@@ -147,36 +189,33 @@ int test_leds(String _ = "") {
     return 1;
 }
 
-int setLogLevel(String logLevel) {
-    return 1;
-}
-
 void setup() {
-    //Serial.begin(38400);
-
-    pinMode(BTN_PIN, INPUT_PULLDOWN);
-    
     led.begin();
     led.setColor(RGB_WHITE);
     led.blinkFast();
-    delay(5000); // wait 5 seconds so the serial monitor can connect... dumb hack, I know ;P 
     
+    pinMode(BTN_PIN, INPUT_PULLDOWN);
+    
+    waitFor(Serial.isConnected, 10000);
+
+    Log.trace("Resetting WiFi credentials and attempting to connect.");
+
+    WiFi.clearCredentials();   // Make sure to clear any previous WiFi credentials
+    WiFi.disconnect();
+    WiFi.on();
+    WiFi.setCredentials(WIFI_SSID, WIFI_PASS);
+    WiFi.connect();
+    
+    if(waitFor(WiFi.ready, 10000)){
+        Log.info("Successfully connected to WiFi.");
+    } else {
+        Log.error("Failed to connect to Wifi in time... this may go badly ");
+    }
+
     scale.begin();
     scale.power_down();
     
     Log.trace("Config: offset: %ld, scale: %.2f", scale.get_offset(), scale.get_scale());
-    
-    if (!Particle.connected()) {
-        Log.warn("Waiting to connect to particle cloud");
-        int cnt = 0;
-        while(!Particle.connected()) {
-            cnt++;
-            if (cnt > 10) {
-                break;
-            }
-            delay(1000);
-        }
-    }
     
     Particle.function("startCalibration", init_calibration);
     Particle.function("cancelCalibration", cancel_calibration);
@@ -184,10 +223,35 @@ void setup() {
     Particle.function("tare", tare);
     Particle.function("testLEDs", test_leds);
     Particle.function("clearMemory", cleanMemAndRestart);
-    Particle.function("setLogLevel", setLogLevel);
     
+    Log.trace("Connecting to Particle Cloud");
+    Particle.connect();
+    if(waitFor(Particle.connected, 10000)) {
+        Log.info("Successfully connected to Particle cloud");
+    } else {
+        Log.error("Failed to connect to Particle cloud");
+    }
+
+    bool res = dataService.ping();
+    if (!res) {
+        Log.error("Data service ping failed.");
+    } else {
+        Log.info("Data service ping successful");
+        deviceData = dataService.findDevice();
+        if (deviceData.isNull) {
+            Log.error("Device not found with Data Service.");
+            deviceData = dataService.registerDevice();
+            if (deviceData.isNull) {
+                Log.error("Failed to register device with the Data Service");
+            }
+        }
+        if (!deviceData.isNull) {
+            Log.trace("Found or successfully registered device with the Data Service.  Id: %s", deviceData.id.c_str());
+        }
+    }
+
     float cal = get_calibration();
-    Log.info("Startup Calibration Value: %.2f", cal);
+    Log.trace("Startup Calibration Value: %.2f", cal);
     
     led.stopBlink();
     led.setColor(RGB_BLUE);
@@ -249,6 +313,29 @@ void loop() {
         scale.power_up();
         
         float units = scale.get_units(10);
+        if (units < 0) {
+            units = units * -1;
+        }
+        float diff = units * DIFF_THRESHOLD;
+        if (units > LAST_MEASUREMENT + diff || units < LAST_MEASUREMENT - diff) {
+            LAST_MEASUREMENT = units;
+
+            Log.info("New measurement found that exceeds the differential threshold.  Measurement value: %.2f", units);
+            Log.trace("Last measurement: %.2f, current measurements: %.2f, differential: %.2f, differential threshold: %.2f", LAST_MEASUREMENT, units, diff, DIFF_THRESHOLD);
+            
+            if (deviceData.isNull) {
+                Log.warn("UNKNOWN id for the device from the device service...");
+            } else {
+                time32_t n = Time.now();
+                if (dataService.sendMeasurement(deviceData.id, units, n)) {
+                    Log.info("Successfully saved the measurement with the Data Service");
+                } else {
+                    Log.error("Failed to save the measurement with the Data Service");
+                }
+            }
+        }
+
+
         Log.trace("Sample taken: %.2f", units);
         
         scale.power_down();			        // put the ADC in sleep mode

@@ -19,14 +19,15 @@ class Devices(Base, DictifiableMixin, QueryMethodsMixin):
     id = Column(_PKEY, UUID, server_default=func.uuid_generate_v4(), primary_key=True)
     name = Column(String, nullable=False)
     device_type = Column(String, nullable=False)
-    manufacturer = Column(String, nullable=False)
-    manufacturer_id = Column(String, nullable=False)
+    chip_type = Column(String, nullable=False)
+    chip_id = Column(String, nullable=False)
+    chip_model = Column(String, nullable=True)
     meta = Column(NestedMutableDict.as_mutable(JSONB), nullable=True)
 
     measurements = relationship("DeviceMeasurements", back_populates="device")
 
-    __table_args__ = (Index("ix_sensor_manufacturer_and_manufacturer_id", manufacturer, manufacturer_id, unique=False),)
+    __table_args__ = (Index("ix_sensor_chip_type_and_chip_id", chip_type, chip_id, unique=False),)
 
     @classmethod
-    def get_by_manufacturer_id(cls, session, manufacturer, manufacturer_id, **kwargs):
-        return session.query(cls).filter(and_(Devices.manufacturer.ilike(manufacturer), Devices.manufacturer_id.ilike(manufacturer_id)))
+    def get_by_chip_id(cls, session, chip_type, chip_id, **kwargs):
+        return session.query(cls).filter(and_(Devices.chip_type.ilike(chip_type), Devices.chip_id.ilike(chip_id)))

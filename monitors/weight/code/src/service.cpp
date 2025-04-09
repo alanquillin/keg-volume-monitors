@@ -1,3 +1,4 @@
+#include "config.h"
 #include "service.h"
 #include <HttpClient.h>
 
@@ -5,50 +6,22 @@ Logger logger("app.service");
 
 HttpClient http_client;
 
-String programToDBVal(uint8_t program){
-    String sProg = programToString(program);
-    sProg.toLowerCase().replace(" ", "_");
-    return sProg;
-}
+const String CHIP_TYPE = "Particle";
 
 /**
 * Constructor.
 */
-DataService::DataService() {}
-
-DataService::DataService(bool enabled, String manufacturer, String manufacturerId, String deviceType, int port, String hostname = "", String ipAddress = "", bool secure=False, int maxRetries=3) {
+DataService::DataService(bool enabled, String deviceType, String hostname, int port, bool secure, int maxRetries) {
     _enabled = enabled;
-    _manufacturer = manufacturer;
-    _manufacturerId = manufacturerId;
     _deviceType = deviceType;
     _hostname = hostname;
-    _ipAddress = ipAddress;
     _port = port;
     _maxRetries = maxRetries;
 
     if (secure) {
-        _scheme = "https"
+        _scheme = "https";
     } else {
-        _scheme = "http"
-    }
-}
-
-DataService::begin() {}
-
-DataService::begin(bool enabled, String manufacturer, String manufacturerId, String deviceType, int port, String hostname = "", String ipAddress = "", bool secure=False, int maxRetries=3) {
-    _enabled = enabled;
-    _manufacturer = manufacturer;
-    _manufacturerId = manufacturerId;
-    _deviceType = deviceType;
-    _hostname = hostname;
-    _ipAddress = ipAddress;
-    _port = port;
-    _maxRetries = maxRetries;
-
-    if (secure) {
-        _scheme = "https"
-    } else {
-        _scheme = "http"
+        _scheme = "http";
     }
 }
 
@@ -59,7 +32,7 @@ bool DataService::ping() {
 
     int cnt = 0;
     while(cnt < _maxRetries){
-        http_response_t response = _get("/health");
+        http_response_t response = _get("/api/v1/ping");
         if (response.status == 200){
             return true;
         }
@@ -73,21 +46,21 @@ device_data_t DataService::getDeviceData(String id) {
         return {true};
     }
     
-    DynamicJsonDocument doc = _getJson("/api/v1/devices/" + id, 1024);
+    JsonDocument doc = _getJson("/api/v1/devices/" + id);
     return _parseDeviceData(doc);
 }
 
-device_data_t DataService::findDevice(String manufacturerId) {
+device_data_t DataService::findDevice() {
     if (!_enabled) {
         return {true};
     }
     
-    String path = "/api/v1/devices/find?manufacturer=";
-    path.concat(_manufacturer);
-    path.concat("&manufacturer_id=");
-    path.concat(manufacturerId);
+    String path = "/api/v1/devices/find?chip_type=";
+    path.concat(CHIP_TYPE);
+    path.concat("&chip_id=");
+    path.concat(System.deviceID());
     
-    DynamicJsonDocument doc = _getJson(path, 1024);
+    JsonDocument doc = _getJson(path);
 
     JsonArray array = doc.as<JsonArray>();
     if (array.size() == 0) {
@@ -96,46 +69,45 @@ device_data_t DataService::findDevice(String manufacturerId) {
     return _parseDeviceData(array[0]);
 }
 
-device_data_t DataService::registerDevice(String manufacturerId, double targetTemp, double calibrationDiff, uint8_t program, double coolDiff, double heatDiff, double tempPrecision){
+device_data_t DataService::registerDevice(){
     if (!_enabled) {
         return {true};
     }
 
     String path = "/api/v1/devices";
 
-    const uint16_t docSize = 1024;
-    DynamicJsonDocument jData(docSize);
-    jData["manufacturer_id"] =  _manufacturerId.c_str();
-    jData["manufacturer"] = _manufacturer.c_str();
-    jData["device_type"] = _deviceType.c_str();
+    JsonDocument jData;
+    jData["chipId"] =  System.deviceID().c_str();
+    jData["chipType"] = CHIP_TYPE.c_str();
+    jData["deviceType"] = _deviceType.c_str();
+    jData["chipModel"] = CHIP_MODEL.c_str();
 
     device_data_t res = {true};
     int cnt = 0;
     while(cnt < _maxRetries){
-        http_response_t response = _post(path, jData, docSize);
+        http_response_t response = _post(path, jData);
         if (response.status < 300){
-            return _parseDeviceData(_respToJson(response, 1024));
+            return _parseDeviceData(_respToJson(response));
         }
         cnt = cnt + 1;
     }
     return res;
 }
 
-bool DataService::sendStats(String id, float measurement, long timestamp, uint8_t size){
+bool DataService::sendMeasurement(String id, float measurement, long timestamp){
     if (!_enabled) {
         return true;
     }
 
     String path = "/api/v1/devices/" + id + "/measurements";
 
-    const uint16_t docSize = 384;
-    DynamicJsonDocument jData(docSize);
+    JsonDocument jData;
     jData["m"] =  measurement;
     jData["ts"] =  timestamp;
 
     int cnt = 0;
     while(cnt < _maxRetries){
-        http_response_t response = _post(path, jData, docSize);
+        http_response_t response = _post(path, jData);
         if (response.status < 300) {
             return true;
         }
@@ -144,8 +116,8 @@ bool DataService::sendStats(String id, float measurement, long timestamp, uint8_
     return false;
 }
 
-DynamicJsonDocument DataService::_getJson(String path, uint16_t docSize) {
-    return _respToJson(_get(path), docSize);
+JsonDocument DataService::_getJson(String path) {
+    return _respToJson(_get(path));
 }
 
 http_response_t DataService::_get(String path) {
@@ -169,8 +141,8 @@ http_response_t DataService::_get(http_request_t request){
     return response;
 }
 
-http_response_t DataService::_post(String path, DynamicJsonDocument jDoc, const uint16_t docSize){
-    return _post(_buildRequest(path, jDoc, docSize));
+http_response_t DataService::_post(String path, JsonDocument jDoc){
+    return _post(_buildRequest(path, jDoc));
 }
 
 http_response_t DataService::_post(http_request_t request){
@@ -200,16 +172,16 @@ http_request_t DataService::_buildRequest(String path) {
     return request;
 }
 
-http_request_t DataService::_buildRequest(String path, DynamicJsonDocument jDoc, const uint16_t docSize) {
+http_request_t DataService::_buildRequest(String path, JsonDocument jDoc) {
     char data[1024];
     serializeJson(jDoc, data);
     http_request_t request = _buildRequest(path);
     request.body = data;
-    return request
+    return request;
 }
 
-DynamicJsonDocument DataService::_respToJson(http_response_t response, const uint16_t docSize) {
-    DynamicJsonDocument doc(docSize);
+JsonDocument DataService::_respToJson(http_response_t response) {
+    JsonDocument doc;
     if (response.status == 200){
         DeserializationError error = deserializeJson(doc, response.body.c_str());
         if (error) {
@@ -221,14 +193,13 @@ DynamicJsonDocument DataService::_respToJson(http_response_t response, const uin
     return doc;
 }
 
-device_data_t DataService::_parseDeviceData(DynamicJsonDocument jDoc) {
+device_data_t DataService::_parseDeviceData(JsonDocument jDoc) {
     device_data_t res = {true};
     if (!jDoc.isNull()) {
         res.isNull = false;
         JsonObject deviceDetails = jDoc.as<JsonObject>();
         res.id = String(deviceDetails["id"].as<const char*>());
-        res.manufacturerId = String(deviceDetails["manufacturer_id"].as<const char*>());
-        res.deviceType = String(deviceDetails["device_type"].as<const char*>());
+        res.deviceType = String(deviceDetails["deviceType"].as<const char*>());
     }
     return res;
 }

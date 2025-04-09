@@ -24,25 +24,25 @@ device_action_functions = {
 
 
 def _execute(func_name, func_set, device, *args, **kwargs):
-    manufacturer = device.manufacturer.lower()
-    model = device.model.lower()
+    chip_type = device.chip_type.lower()
+    model = device.chip_model.lower()
 
-    manufacturer_funcs = func_set.get(manufacturer)
-    if not manufacturer_funcs:
-        LOG.info("no functions configured for devices with manufacturer: %s", manufacturer)
+    funcs = func_set.get(chip_type)
+    if not funcs:
+        LOG.info("no functions configured for devices with chip type: %s", chip_type)
         return
 
-    model_funcs = manufacturer_funcs.get(model)
+    model_funcs = funcs.get(model)
     if not model_funcs:
-        model_funcs = manufacturer_funcs.get("_default_")
+        model_funcs = funcs.get("_default_")
 
     if not model_funcs:
-        LOG.info("no functions configured for %s devices with model: %s", manufacturer, model)
+        LOG.info("no functions configured for %s devices with model: %s", chip_type, model)
         return
 
     fn = model_funcs.get(func_name)
     if not fn:
-        LOG.info("no %s function configured for %s devices with model: %s", func_name, manufacturer, model)
+        LOG.info("no %s function configured for %s devices with model: %s", func_name, chip_type, model)
         return
 
     return fn(device, *args, **kwargs)
