@@ -1,10 +1,11 @@
 #include "rgb_led.h"
 
-int RGB_BLUE   = 0x0000FF; // {0, 0, 255};
-int RGB_GREEN  = 0x00FF00; //{0, 255, 0};
-int RGB_RED    = 0xFF0000; // {255, 0, 0};
-int RGB_WHITE  = 0xFFFFFF; //{255, 255, 255};
-int RGB_OFF    = 0x000000; // {0, 0, 0};
+int RGB_BLUE   = 0x0000FF;
+int RGB_GREEN  = 0x00FF00;
+int RGB_RED    = 0xFF0000;
+int RGB_WHITE  = 0xFFFFFF;
+int RGB_OFF    = 0x000000;
+int RGB_ORANGE = 0xFF6000;
 
 RGBLED::RGBLED(int redPin, int greenPin, int bluePin) {
     RED_PIN = redPin;
@@ -67,6 +68,7 @@ void RGBLED::blinkSlow(int rgb, bool store) {
 void RGBLED::stopBlink() {
     if (blinkTimer->isActive()) {
         blinkTimer->stop();
+        setColor(CURRENT_COLOR, false); //in case we stop it when it is off mid blink
     }
 }
 

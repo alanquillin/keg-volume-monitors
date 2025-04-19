@@ -44,13 +44,13 @@ class BaseResource(Resource):
             if key in transform_keys:
                 _key = transform_keys[key]
             elif "_" in key:
-                _key = "".join([key.title() if ix > 0 else key.lower() for ix, key in enumerate(key.split("_"))])
+                _key = snake_to_camel(key)
             else:
                 _key = key
 
             if isinstance(val, dict):
                 val = self.transform_response(val, transform_keys=transform_keys, remove_keys=remove_keys)
 
-            transformed[snake_to_camel(_key)] = val
+            transformed[_key] = val
 
         return transformed

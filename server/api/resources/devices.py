@@ -23,7 +23,7 @@ device_mod = api.model('Device', {
         'chipType': fields.String(required=True, description="The type of controller chip for the device.  Current only supports 'Particle'")
     } | IN_FIELDS)
 
-@api.route('/')
+@api.route('', '/')
 class Devices(BaseResource):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -34,6 +34,7 @@ class Devices(BaseResource):
         with session_scope(self.config) as db_session:
             devices = DevicesDB.query(db_session)
             if devices:
+                self.logger.debug(f"devices found. results: {devices}")
                 return self.transform_response(devices)
         return []
     
@@ -83,6 +84,7 @@ class FindDevice(BaseResource):
         with session_scope(self.config) as db_session:
             devs = DevicesDB.get_by_chip_id(db_session, chip_type, chip_id)
             if devs:
+                self.logger.debug(f"found device(s) matching chip type: {chip_type} with chip id: {chip_id}, results: {devs}")
                 return self.transform_response(devs)
         api.abort(404)
 

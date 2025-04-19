@@ -1,3 +1,6 @@
+# Particle specific files
+wifi-creds.json
+
 # Key files
 *.der
 *.pem

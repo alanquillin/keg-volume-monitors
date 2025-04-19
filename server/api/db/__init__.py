@@ -251,7 +251,33 @@ def _merge_into(target, updates):
             target[k] = v
     return target
 
+def try_return_all(q):
+    try:
+        return q.all()
+    except DataError as err:
+        if not isinstance(err.orig, InvalidTextRepresentation):
+            raise
+        if "invalid input value for enum" not in str(err.orig):
+            raise
 
+        # somewhat finicky parsing of the PG error here
+        # expected format returned by str(err.orig):
+        # E       psycopg2.errors.InvalidTextRepresentation: invalid input value for enum "OrderType": "invalid"
+        # E       LINE 3: ...3-4b88-a6b0-5a01d901233f' AND orders.order_type = 'invalid' ...
+        # E                                                                    ^
+
+        msg, desc, pointer, _ = str(err.orig).split("\n")
+
+        # get Enum name from the first line
+        enum_name = msg.split("for enum ")[1].split(":")[0].strip('"')
+        exc = getattr(cls, _ENUM_EXC_MAP).get(enum_name, local_exc.InvalidEnum)
+
+        # Use the indicator on the third line to find the column name in the second line
+        err_ix = pointer.index("^")
+        _, column_name = desc[:err_ix].split()[-2].split(".")
+
+        raise exc(err.params.get(column_name, "could not find offending value")) from err
+    
 class QueryMethodsMixin:
     @classmethod
     def query(cls, session, q=None, slice_start=None, slice_end=None, ids=None, locations=None, **kwargs):
@@ -269,32 +295,8 @@ class QueryMethodsMixin:
             LOGGER.debug("filtering query by ids: %s", ids)
             q = q.filter(cls.id.in_(ids))
 
-        try:
-            return q.all()
-        except DataError as err:
-            if not isinstance(err.orig, InvalidTextRepresentation):
-                raise
-            if "invalid input value for enum" not in str(err.orig):
-                raise
-
-            # somewhat finicky parsing of the PG error here
-            # expected format returned by str(err.orig):
-            # E       psycopg2.errors.InvalidTextRepresentation: invalid input value for enum "OrderType": "invalid"
-            # E       LINE 3: ...3-4b88-a6b0-5a01d901233f' AND orders.order_type = 'invalid' ...
-            # E                                                                    ^
-
-            msg, desc, pointer, _ = str(err.orig).split("\n")
-
-            # get Enum name from the first line
-            enum_name = msg.split("for enum ")[1].split(":")[0].strip('"')
-            exc = getattr(cls, _ENUM_EXC_MAP).get(enum_name, local_exc.InvalidEnum)
-
-            # Use the indicator on the third line to find the column name in the second line
-            err_ix = pointer.index("^")
-            _, column_name = desc[:err_ix].split()[-2].split(".")
-
-            raise exc(err.params.get(column_name, "could not find offending value")) from err
-
+        return try_return_all(q)
+        
     @classmethod
     def get_by_pkey(cls, session, pkey):
         return session.query(cls).get(pkey)

@@ -8,6 +8,7 @@ extern int RGB_GREEN;
 extern int RGB_RED;
 extern int RGB_WHITE;
 extern int RGB_OFF;
+extern int RGB_ORANGE;
 
 class RGBLED 
 {

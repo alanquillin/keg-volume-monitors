@@ -2,7 +2,8 @@
 #include "config.h"
 #include <HX711ADC.h>
 #include <math.h>
-#include "../../../shared-lib/rgb_led.h"
+//#include "../../../shared-lib/rgb_led.h"
+#include "rgb_led.h"
 //#include "../../../shared-lib/service.h"
 #include "service.h"
 
@@ -13,34 +14,49 @@ SYSTEM_THREAD(ENABLED);
 #endif
 
 
-SerialLogHandler logHandler(LOG_LEVEL_ALL);
+SerialLogHandler logHandler(LOG_LEVEL_WARN, {
+    { "app", LOG_LEVEL_TRACE }, // Default logging level for all app messages
+    { "app.service", LOG_LEVEL_TRACE } // Logging level for data service
+});
 
 HX711ADC scale(HX711_DOUT_PIN, HX711_SCK_PIN);		// parameter "gain" is omitted; the default value 128 is used by the library
 RGBLED led(RED_PIN, GREEN_PIN, BLUE_PIN);
 DataService dataService(SERVICE_ENABLED, "weight", HOSTNAME, PORT, false);
 device_data_t deviceData = {true};
 
-
 float LAST_MEASUREMENT = 0;
+time32_t LAST_MEASUREMENT_TS = 0;
+
 bool BTN_PRESSED = false;
 unsigned long BTN_PRESSED_ON;
 bool CALIBRATION_MODE_ENABLED = false;
 bool CALIBRATING = false;
 bool TESTING_LEDS = false;
+bool MAINTENANCE_MODE = false;
 
-void store_calibration(float cal) {
+void storeCalibrationScale(float cal) {
     EEPROM.put(0, cal);
 }
 
-float get_calibration() {
+float getCalibrationScale() {
     float cal;
     EEPROM.get(0, cal);
     return cal;
 }
 
+void storeCalibrationOffset(long offset) {
+    EEPROM.put(4, offset);
+}
+
+long getCalibrationOffset() {
+    long offset;
+    EEPROM.get(4, offset);
+    return offset;
+}
+
 // Puts the scale in calibration mode and resets.  Assumes the scale is clear or has the inital tare weight on
 /**
- * @brief CLOUD FUNCTION CALLBACK - Performs a tare function
+ * @brief CLOUD FUNCTION CALLBACK - Performs a tare function and stores the offset in memory
  * 
  * @param _ String: ignored and unused
  * @return int 
@@ -49,7 +65,8 @@ int tare(String _ = "") {
     scale.power_up();
     scale.tare();
     scale.power_down();
-    
+    storeCalibrationOffset(scale.get_offset());
+    Log.trace("Tare complete, offset stored: %li", scale.get_offset());
     return 1;
 }
 
@@ -59,7 +76,7 @@ int tare(String _ = "") {
  * @param _ String: ignored and unused
  * @return int 
  */
-int init_calibration(String _ = "") {
+int initCalibration(String _ = "") {
     CALIBRATION_MODE_ENABLED = true;
     scale.set_scale();
     tare();
@@ -80,14 +97,16 @@ int cancel_calibration(String _ = "") {
     if (CALIBRATING) {
         return -1;
     }
-    float cal = get_calibration();
+    float cal = getCalibrationScale();
+    float offset = getCalibrationOffset();
     
-    if (isnan(cal)) {
+    if (isnan(cal) || isnan(offset)) {
         return -2;
     }
     
     //blinkLEDSlow.stop();
     scale.set_scale(cal);
+    scale.set_offset(offset);
     
     CALIBRATION_MODE_ENABLED = false;
     return 1;
@@ -124,29 +143,51 @@ int cleanMemAndRestart(String _ = "") {
  *        been removed or changed while calibration was in progress
  */
  
-int calibrate(String cal_weight_str) {
-    float cal_weight = cal_weight_str.toFloat();
-    if (cal_weight == 0 && cal_weight_str != "0") {
+int calibrate(String calWeight_s) {
+    float calWeight = calWeight_s.toFloat();
+    if (calWeight == 0 && calWeight_s != "0") {
         return -1;
+    }
+
+    if (calWeight < DEFAULT_EMPTY_KEG_W) {
+        if (!ALLOW_LOW_WEIGHT_CALIBRATION) {
+            Log.error("Calibration failed because the calibration weight was below %.2fg", DEFAULT_EMPTY_KEG_W);
+            return -2;
+        }
+
+        Log.warn("Calibrating with weight lower %.2fg which is less than the empty keg weight: %.2f", calWeight, DEFAULT_EMPTY_KEG_W);
     }
     
     CALIBRATING = true;
-    Log.info("Starting calibration.  Known calibration weight: %0.2f", cal_weight);
+    Log.info("Starting calibration.  Known calibration weight: %0.2f", calWeight);
     float units_t = 0;
-    int cnt = 20;
+    int cnt = 10;
+    int sampleCnt = 10;
     scale.power_up();
     Log.trace("starting calibration sampling.  Total sample groups: %i", cnt);
     for(int i=0; i<cnt; i++) {
-        int sampleCnt = 10;
         float units = scale.get_units(sampleCnt);
         units_t = units_t + units;
         Log.trace("Sample group %i of %i.  Sample count = %i, average unit value: %.2f", i+1, cnt, sampleCnt, units);
         delay(500);
     }
-    float cal = (units_t / cnt) / cal_weight;
-    Log.info("Calibration complete, calibration value: %0.2f", cal);
-    store_calibration(cal);
+    float cal = (units_t / cnt) / calWeight;
+    Log.info("Calibration complete, calibration scale value: %0.2f", cal);
     scale.set_scale(cal);
+
+    Log.trace("Testing calibration.  New sampple must be withing the differential threshold: %.2f", DIFF_THRESHOLD);
+    float diff = calWeight * DIFF_THRESHOLD;
+    float max = calWeight + diff;
+    float min = calWeight - diff;
+    float sample = scale.get_units(sampleCnt);
+
+    if(sample < min || sample > max) {
+        Log.error("Calibration failed, the new sample %.2f was out side of the allowed range: min: %.2f, max: %.2f", sample, min, max);
+        scale.set_scale();  // reset calibration scale
+        return -3;
+    }
+    
+    storeCalibrationScale(cal);
     scale.power_down();
     CALIBRATION_MODE_ENABLED = false;
     CALIBRATING = false;
@@ -189,6 +230,91 @@ int test_leds(String _ = "") {
     return 1;
 }
 
+/**
+ * @brief CLOUD FUNCTION CALLBACK - Sends the last stored sample to the data service
+ * 
+ * @param _ String: ignored and unused
+ * @return int A value of 1 is return to represent successful dqat push
+ *      @error codes:
+ *          -1 - Failed to push the data to the data service
+ *          -2 - The extended device information could not be retrieved from the data service
+ *          -3 - No sample has been taken yet
+ */
+int sendMostRecentSample(String _ = "") {
+    if (deviceData.isNull) {
+        Log.info("Extended device data not found from data service, attempting to discover...");
+        deviceData = dataService.findDevice();
+    }
+
+    if (deviceData.isNull) {
+        Log.error("discovery failed, no extended device data could be retrieved form the data service");
+        return -2;
+    }
+
+    if (LAST_MEASUREMENT_TS == 0) {
+        return -3;
+    }
+    
+    if (dataService.sendMeasurement(deviceData.id, LAST_MEASUREMENT, LAST_MEASUREMENT_TS)) {
+        Log.info("Successfully saved the measurement with the Data Service");
+        return 1;
+    } else {
+        Log.error("Failed to save the measurement with the Data Service");
+        return -1;
+    }
+}
+
+int startMaintenanceMode(String _ = "") {
+    if (CALIBRATING || CALIBRATION_MODE_ENABLED) {
+        Log.error("Cannot enter maintenance mode while calibration is in process.");
+        return -1;
+    }
+
+    Log.info("Entering maintenance mode.");
+    MAINTENANCE_MODE = true;
+    return 1;
+}
+
+int stopMaintenanceMode(String _ = "") {
+    if (CALIBRATING || CALIBRATION_MODE_ENABLED) {
+        Log.error("Cannot exit maintenance mode while calibration is in process.");
+        return -1;
+    }
+
+    Log.info("Exiting maintenance mode.");
+    MAINTENANCE_MODE = false;
+    return 1;
+}
+
+/**
+ * @brief CLOUD FUNCTION CALLBACK - Sends the last stored sample to the data service
+ * 
+ * @param _ String: ignored and unused
+ * @return int Value representing this current state of the device
+ *          1 - Normal function and data service available
+ *          2 - Normal function but data service is not available
+ *          3 - Caiibration mode enabled
+ *          4 - Calibrating in progress
+ *          99 - Maintenance mode
+ */
+int getState(String _ = "") {
+    if (CALIBRATING) {
+        return 4;
+    }
+
+    if (CALIBRATION_MODE_ENABLED) {
+        return 3;
+    }
+
+    if (MAINTENANCE_MODE) {
+        return 99;
+    }
+
+    // TODO: Need to add a check for the last call to the data service
+
+    return 1;
+}
+
 void setup() {
     led.begin();
     led.setColor(RGB_WHITE);
@@ -197,13 +323,11 @@ void setup() {
     pinMode(BTN_PIN, INPUT_PULLDOWN);
     
     waitFor(Serial.isConnected, 10000);
+    
+    Log.info("Initiating startup sequence...");
+    Log.trace("Attempting to connect to WiFi.");
 
-    Log.trace("Resetting WiFi credentials and attempting to connect.");
-
-    WiFi.clearCredentials();   // Make sure to clear any previous WiFi credentials
-    WiFi.disconnect();
     WiFi.on();
-    WiFi.setCredentials(WIFI_SSID, WIFI_PASS);
     WiFi.connect();
     
     if(waitFor(WiFi.ready, 10000)){
@@ -215,14 +339,16 @@ void setup() {
     scale.begin();
     scale.power_down();
     
-    Log.trace("Config: offset: %ld, scale: %.2f", scale.get_offset(), scale.get_scale());
-    
-    Particle.function("startCalibration", init_calibration);
+    Particle.function("startCalibration", initCalibration);
     Particle.function("cancelCalibration", cancel_calibration);
     Particle.function("calibrate", calibrate);
     Particle.function("tare", tare);
     Particle.function("testLEDs", test_leds);
     Particle.function("clearMemory", cleanMemAndRestart);
+    Particle.function("sendMostRecentSample", sendMostRecentSample);
+    Particle.function("startMaintenanceMode", startMaintenanceMode);
+    Particle.function("stopMaintenanceMode", stopMaintenanceMode);
+    Particle.function("getState", getState);
     
     Log.trace("Connecting to Particle Cloud");
     Particle.connect();
@@ -250,18 +376,21 @@ void setup() {
         }
     }
 
-    float cal = get_calibration();
-    Log.trace("Startup Calibration Value: %.2f", cal);
+    float cal = getCalibrationScale();
+    long calOffset = getCalibrationOffset();
+    Log.trace("Startup Calibration Value: %.2f, offset: %li", cal, calOffset);
     
-    led.stopBlink();
-    led.setColor(RGB_BLUE);
-    
-    if (isnan(cal) || cal == 0) {
+    if (isnan(cal) || cal == 0.0 || isnan(calOffset) || calOffset == 0) {
         Log.info("No calibration set in memory, starting calibration mode.");
-        init_calibration();	
+        initCalibration();	
+    } else {
+        scale.set_scale(cal);
+        scale.set_offset(calOffset);
     }
-    
-    Log.trace("Setup Complete!");
+
+    led.stopBlink();
+    Log.trace("Scale config: offset: %li, scale: %.2f", scale.get_offset(), scale.get_scale());
+    Log.trace("Startup sequence complete!");
 }
 
 void loop() {
@@ -306,39 +435,55 @@ void loop() {
         led.setColor(RGB_BLUE);
         led.blinkSlow();
         delay(1000);
+    } else if (MAINTENANCE_MODE) {
+        led.stopBlink();
+        led.setColor(RGB_ORANGE);
+
+        delay(1000);
     } else {
         led.stopBlink();
-        
-        led.setColor(RGB_GREEN);
-        scale.power_up();
-        
-        float units = scale.get_units(10);
-        if (units < 0) {
-            units = units * -1;
+        // if moving from a different state, assume an empty keg and set to white.  
+        if (led.getCurrentColor() != RGB_COLOR_WHITE && led.getCurrentColor() != RGB_COLOR_GREEN) {
+            led.setColor(RGB_WHITE);
         }
-        float diff = units * DIFF_THRESHOLD;
-        if (units > LAST_MEASUREMENT + diff || units < LAST_MEASUREMENT - diff) {
-            LAST_MEASUREMENT = units;
 
-            Log.info("New measurement found that exceeds the differential threshold.  Measurement value: %.2f", units);
-            Log.trace("Last measurement: %.2f, current measurements: %.2f, differential: %.2f, differential threshold: %.2f", LAST_MEASUREMENT, units, diff, DIFF_THRESHOLD);
+        scale.power_up();
+        float units = scale.get_units(10);
+        scale.power_down(); // put the ADC in sleep mode
+        
+        Log.trace("Sample taken: %.2f", units);
             
-            if (deviceData.isNull) {
-                Log.warn("UNKNOWN id for the device from the device service...");
-            } else {
-                time32_t n = Time.now();
-                if (dataService.sendMeasurement(deviceData.id, units, n)) {
-                    Log.info("Successfully saved the measurement with the Data Service");
+        if (units < DEFAULT_EMPTY_KEG_W) {
+            led.setColor(RGB_WHITE);
+        } else {
+            led.setColor(RGB_GREEN);
+            float diff = units * DIFF_THRESHOLD;
+            if (units > (LAST_MEASUREMENT + diff) || units < (LAST_MEASUREMENT - diff)) {
+                Log.info("New measurement found that exceeds the differential threshold.  Measurement value: %.2f", units);
+                Log.trace("Last measurement: %.2f, current measurements: %.2f, differential: %.2f, differential threshold: %.2f", LAST_MEASUREMENT, units, diff, DIFF_THRESHOLD);
+
+                LAST_MEASUREMENT = units;
+                LAST_MEASUREMENT_TS = Time.now();
+
+                if (deviceData.isNull) {
+                    Log.info("Extended device data not found from data service, attempting to discover");
+                    deviceData = dataService.findDevice();
+                }
+
+                if (deviceData.isNull) {
+                    Log.warn("UNKNOWN id for the device from the device service...");
                 } else {
-                    Log.error("Failed to save the measurement with the Data Service");
+                    led.blinkFast();
+                    if (dataService.sendMeasurement(deviceData.id, units, LAST_MEASUREMENT_TS)) {
+                        Log.info("Successfully saved the measurement with the Data Service");
+                    } else {
+                        Log.error("Failed to save the measurement with the Data Service");
+                    }
+                    led.stopBlink();
                 }
             }
         }
 
-
-        Log.trace("Sample taken: %.2f", units);
-        
-        scale.power_down();			        // put the ADC in sleep mode
         delay(1000);
     }
   

@@ -23,7 +23,7 @@ device_measurement_mod = api.model('DeviceMeasurement', {
     "takenOn": fields.DateTime(requires=False, description="The datetime that the measurement was taken.")
 })
 
-@api.route('/')
+@api.route('', '/')
 class DeviceMeasurements(BaseResource):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

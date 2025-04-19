@@ -8,7 +8,7 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.schema import Index
 
-from db import Base, DictifiableMixin, QueryMethodsMixin
+from db import Base, DictifiableMixin, QueryMethodsMixin, try_return_all
 from db.types.nested import NestedMutableDict
 
 
@@ -30,4 +30,5 @@ class Devices(Base, DictifiableMixin, QueryMethodsMixin):
 
     @classmethod
     def get_by_chip_id(cls, session, chip_type, chip_id, **kwargs):
-        return session.query(cls).filter(and_(Devices.chip_type.ilike(chip_type), Devices.chip_id.ilike(chip_id)))
+        return try_return_all(session.query(cls).filter(and_(Devices.chip_type.ilike(chip_type), Devices.chip_id.ilike(chip_id))))
+

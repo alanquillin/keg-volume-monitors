@@ -21,4 +21,4 @@ def utcnow_aware():
 
 def utcfromtimestamp_aware(timestamp):
 
-    return datetime.fromtimestamp(timestamp, datetime.timezone.utc)
+    return datetime.datetime.fromtimestamp(timestamp, datetime.timezone.utc)

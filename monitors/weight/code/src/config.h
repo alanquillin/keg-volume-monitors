@@ -38,9 +38,15 @@ const String HOSTNAME = "192.168.122.143";
 const int PORT = 8000;
 const bool SERVICE_ENABLED = true;
 
-const String WIFI_SSID = "<SSID>";
-const String WIFI_PASS = "<WIFIPASS>";
-
 const float DIFF_THRESHOLD = .01;
+
+/** Most standard stainless steal corny keg are a little over 4 Kg.  
+ * Most standard stainless steal corny keg are a little over 4 Kg.  
+ * This assumes calibration was done in g, if another unit was used then
+ * Update this to the min weight you want as your threshold */ 
+const float DEFAULT_EMPTY_KEG_W = 4000.0;
+/** if false, calibration will fail if the calibration weight provided is 
+ * less than DEFAULT_EMPTY_KEG_W */ 
+const bool ALLOW_LOW_WEIGHT_CALIBRATION = true;
 
 #endif
