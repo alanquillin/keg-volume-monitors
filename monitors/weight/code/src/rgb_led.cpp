@@ -57,7 +57,7 @@ void RGBLED::blinkFast(int rgb, bool store) {
 }
 
 void RGBLED::blinkSlow() {
-    startBlink(500);
+    startBlink(400);
 }
 
 void RGBLED::blinkSlow(int rgb, bool store) {
