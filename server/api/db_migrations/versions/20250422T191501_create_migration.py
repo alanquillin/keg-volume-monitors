@@ -1,8 +1,8 @@
-"""initial migration
+"""create-migration
 
-Revision ID: f1c1d00f792b
+Revision ID: 2660f2388e3e
 Revises: 
-Create Date: 2025-04-09 14:16:26.790555+00:00
+Create Date: 2025-04-22 19:15:01.423280+00:00
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = 'f1c1d00f792b'
+revision = '2660f2388e3e'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -25,6 +25,11 @@ def upgrade():
     sa.Column('chip_type', sa.String(), nullable=False),
     sa.Column('chip_id', sa.String(), nullable=False),
     sa.Column('chip_model', sa.String(), nullable=True),
+    sa.Column('empty_keg_weight', sa.Float(), nullable=True),
+    sa.Column('empty_keg_weight_unit', sa.String(), nullable=True),
+    sa.Column('start_volume', sa.Float(), nullable=False),
+    sa.Column('start_volume_unit', sa.String(), nullable=False),
+    sa.Column('display_volume_unit', sa.String(), nullable=False),
     sa.Column('meta', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
