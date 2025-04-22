@@ -104,3 +104,7 @@ def is_valid_uuid(uuid_to_test, version=4):
         return False
 
     return str(uuid_obj) == uuid_to_test
+
+# Calculates the volume (in ml) from the weight.  
+def calculate_volume_ml_from_weight(weight_g, density_mlg=1):
+    return weight_g / density_mlg

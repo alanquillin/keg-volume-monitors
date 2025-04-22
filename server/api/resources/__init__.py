@@ -12,19 +12,17 @@ class BaseResource(Resource):
 
         self.config = Config()
         self.logger = logging.getLogger(self.__class__.__name__)
-
-    def transform_response(self, data, transform_keys=None, remove_keys=None):
+    
+    @staticmethod
+    def transform_response(data, transform_keys=None, remove_keys=None):
         if not data:
             return data
 
         if getattr(data, "to_dict", None):
-            return self.transform_response(data.to_dict(), transform_keys=transform_keys, remove_keys=remove_keys)
-
-        if isinstance(data, BaseResource):
-            return self.transform_response(data.to_dict(), transform_keys=transform_keys, remove_keys=remove_keys)
+            return BaseResource.transform_response(data.to_dict(), transform_keys=transform_keys, remove_keys=remove_keys)
 
         if isinstance(data, list):
-            return [self.transform_response(d, transform_keys=transform_keys, remove_keys=remove_keys) for d in data]
+            return [BaseResource.transform_response(d, transform_keys=transform_keys, remove_keys=remove_keys) for d in data]
 
         transformed = {}
 
@@ -49,7 +47,7 @@ class BaseResource(Resource):
                 _key = key
 
             if isinstance(val, dict):
-                val = self.transform_response(val, transform_keys=transform_keys, remove_keys=remove_keys)
+                val = BaseResource.transform_response(val, transform_keys=transform_keys, remove_keys=remove_keys)
 
             transformed[_key] = val
 

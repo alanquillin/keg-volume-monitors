@@ -1,7 +1,8 @@
 {
   "__conversion_schema": {
     "api.port": "int",
-    "db.port": "int"
+    "db.port": "int",
+    "particle.device_services.enabled": "bool"
   },
   "api": {
     "host": "localhost",

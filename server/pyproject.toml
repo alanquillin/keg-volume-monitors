@@ -64,6 +64,7 @@ alembic = "^1.15.2"
 #psycopg2-binary = "^2.9.9"
 psycopg2-binary = "2.9.9" #pinned cause there was build errors for 2.9.10
 simplejson = "^3.20.1"
+requests = "^2.32.3"
 
 [tool.poetry.dev-dependencies]
 bandit = "^1.6.2"

@@ -18,6 +18,13 @@ device_action_functions = {
     "particle": {
         "_default_": {
             "ping": particle.ping,
+            "start_calibration": particle.start_calibration,
+            "calibrate": particle.calibrate,
+            "tare": particle.tare,
+            "clear_memory": particle.clear_memory,
+            "send_most_recent_sample": particle.send_most_recent_sample,
+            "start_maintenance_mode": particle.start_maintenance_mode,
+            "stop_maintenance_mode": particle.stop_maintenance_mode
         }
     }
 }
@@ -25,22 +32,27 @@ device_action_functions = {
 
 def _execute(func_name, func_set, device, *args, **kwargs):
     chip_type = device.chip_type.lower()
-    model = device.chip_model.lower()
+    model = device.chip_model
+    if model:
+        model = model.lower()
 
     funcs = func_set.get(chip_type)
     if not funcs:
         LOG.info("no functions configured for devices with chip type: %s", chip_type)
         return
 
-    model_funcs = funcs.get(model)
-    if not model_funcs:
-        model_funcs = funcs.get("_default_")
+    funcs = funcs.get("_default_")
+    if model:
+        model_funcs = funcs.get(model)
+        if model_funcs:
+            m_funcs = funcs | model_funcs
+            funcs = m_funcs
 
-    if not model_funcs:
+    if not funcs:
         LOG.info("no functions configured for %s devices with model: %s", chip_type, model)
         return
 
-    fn = model_funcs.get(func_name)
+    fn = funcs.get(func_name)
     if not fn:
         LOG.info("no %s function configured for %s devices with model: %s", func_name, chip_type, model)
         return
@@ -72,14 +84,23 @@ def supports_status_check(device, *args, **kwargs):
     # There is a chance the implementation return None or other falsey values, so explicitely check for True
     return True if get(device, "supports_status_check", *args, **kwargs) == True else False
 
+def start_calibration(device, *args, **kwargs):
+    return run(device, "start_calibration")
 
-def set_program(device, program, *args, **kwargs):
-    return run(device, "set_program", program, *args, **kwargs)
+def calibrate(device, cal_weight, *args, **kwargs):
+    return run(device, "calibrate", cal_weight)
 
+def tare(device, *args, **kwargs):
+    return run(device, "tare")
 
-def set_target_temp(device, program, *args, **kwargs):
-    return run(device, "set_target_temp", program, *args, **kwargs)
+def clear_memory(device, *args, **kwargs):
+    return run(device, "clear_memory")
 
+def send_most_recent_sample(device,  *args, **kwargs):
+    return run(device, "send_most_recent_sample")
 
-def refresh_config(device, *args, **kwargs):
-    return run(device, "refresh_config", *args, **kwargs)
+def start_maintenance_mode(device, *args, **kwargs):
+    return run(device, "start_maintenance_mode")
+
+def stop_maintenance_mode(device, *args, **kwargs):
+    return run(device, "stop_maintenance_mode")

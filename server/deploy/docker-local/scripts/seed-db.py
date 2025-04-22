@@ -24,7 +24,12 @@ DEVICES = [
         "chip_type": "particle",
         "chip_id": "31003c001747343337363432",
         "chip_model": "Photon",
-        "device_type": "weight"
+        "device_type": "weight",
+        "empty_keg_weight": 4400,
+        "empty_keg_weight_unit": "g",
+        "start_volume": 18927.059, # 5 gallons
+        "start_volume_unit": "ml",
+        "display_volume_unit": "ml"
     },
     {
         "id": DEVICE_ID_2,
@@ -32,7 +37,10 @@ DEVICES = [
         "chip_type": "particle",
         "chip_model": "Photon2",
         "chip_id": "0a10aced202194944a054e68",
-        "device_type": "flow"
+        "device_type": "flow",
+        "start_volume": 18927.059, # 5 gallons
+        "start_volume_unit": "ml",
+        "display_volume_unit": "ml"
     }
 ]
 
@@ -60,63 +68,63 @@ MEASUREMENTS = [
     {
         "id": MEASUREMENT_ID_2,
         "device_id": DEVICE_ID_1,
-        "measurement": 6891.3,
+        "measurement": 22155.354,
         "unit": "g",
-        "taken_on": datetime(2025, 4, 3, 6, 32, 00, tzinfo=timezone.utc)
+        "taken_on": datetime(2025, 4, 4, 6, 32, 00, tzinfo=timezone.utc)
     },
     {
         "id": MEASUREMENT_ID_3,
         "device_id": DEVICE_ID_1,
-        "measurement": 4600.0,
+        "measurement": 21445.59,
         "unit": "g",
-        "taken_on": datetime(2025, 4, 3, 6, 32, 00, tzinfo=timezone.utc)
+        "taken_on": datetime(2025, 4, 5, 6, 32, 00, tzinfo=timezone.utc)
     },
     {
         "id": MEASUREMENT_ID_4,
         "device_id": DEVICE_ID_1,
-        "measurement": 19222.9,
+        "measurement": 17541.88,
         "unit": "g",
-        "taken_on": datetime(2025, 4, 3, 6, 32, 00, tzinfo=timezone.utc)
+        "taken_on": datetime(2025, 4, 6, 6, 32, 00, tzinfo=timezone.utc)
     },
     {
         "id": MEASUREMENT_ID_5,
         "device_id": DEVICE_ID_1,
-        "measurement": 17900.8,
+        "measurement": 15767.478,
         "unit": "g",
-        "taken_on": datetime(2025, 4, 3, 6, 32, 00, tzinfo=timezone.utc)
+        "taken_on": datetime(2025, 4, 7, 6, 32, 00, tzinfo=timezone.utc)
     },
     {
         "id": MEASUREMENT_ID_6,
         "device_id": DEVICE_ID_1,
-        "measurement": 9000.0,
+        "measurement": 9024.72,
         "unit": "g",
-        "taken_on": datetime(2025, 4, 3, 6, 32, 00, tzinfo=timezone.utc)
+        "taken_on": datetime(2025, 4, 8, 6, 32, 00, tzinfo=timezone.utc)
     },
     {
         "id": MEASUREMENT_ID_7,
         "device_id": DEVICE_ID_1,
-        "measurement": 12000.0,
+        "measurement": 8314.956,
         "unit": "g",
-        "taken_on": datetime(2025, 4, 3, 6, 32, 00, tzinfo=timezone.utc)
+        "taken_on": datetime(2025, 4, 9, 6, 32, 00, tzinfo=timezone.utc)
     },
     {
         "id": MEASUREMENT_ID_8,
         "device_id": DEVICE_ID_1,
-        "measurement": 31567.5,
+        "measurement": 6895.428,
         "unit": "g",
-        "taken_on": datetime(2025, 4, 3, 6, 32, 00, tzinfo=timezone.utc)
+        "taken_on": datetime(2025, 4, 10, 6, 32, 00, tzinfo=timezone.utc)
     },
     {
         "id": MEASUREMENT_ID_9,
         "device_id": DEVICE_ID_2,
-        "measurement": 434.0,
+        "measurement": 6185.664,
         "unit": "ml",
         "taken_on": datetime(2025, 4, 3, 6, 32, 00, tzinfo=timezone.utc)
     },
     {
         "id": MEASUREMENT_ID_10,
         "device_id": DEVICE_ID_2,
-        "measurement": 18943.1,
+        "measurement": 5109.764,
         "unit": "ml",
         "taken_on": datetime(2025, 4, 3, 6, 32, 00, tzinfo=timezone.utc)
     },
