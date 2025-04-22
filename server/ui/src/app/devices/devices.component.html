@@ -1,0 +1,22 @@
+<h1>Devices</h1>
+
+@if(loading) {
+<div>
+    Loading device list calm down.
+</div>
+}
+@if(!loading){
+<div >
+    @for(d of devices; track d.id) {
+    <div>
+        <h3>{{d.name}} ({{d.deviceType}})</h3>
+        <strong>Id:</strong> {{d.id}}<br/>
+        <strong># of measurements:</strong> {{d.measurementCount}}<br/>
+        <strong>Last Measurement:</strong> {{d.latestMeasurement}}{{d.latestMeasurementUnit}} (<strong>taken on:</strong> {{d.latestMeasurementTakenOn}})<br/>
+        <strong>Volume remaining:</strong> {{d.totalVolumeRemaining}} {{d.displayVolumeUnit}} (<strong>{{d.percentRemaining}}%</strong>)
+    </div>
+    } @empty {
+        No devices found.
+    }
+</div>
+}
