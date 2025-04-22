@@ -1,12 +1,13 @@
 # NodeJS base
 # ############################################################
-# FROM node:23.11-bookworm AS node-base
+FROM node:22.14-bookworm AS node-base
 
-# RUN yarn config set network-timeout 1200000 -g
-# RUN yarn global add @angular/cli
-# COPY ui/angular.json ui/tsconfig.app.json ui/tsconfig.json ui/package.json ui/.browserslistrc /ui/
-# WORKDIR /ui
-# RUN yarn install --non-interactive
+RUN yarn config set network-timeout 1200000 -g
+RUN yarn global add @angular/cli
+#COPY ui/angular.json ui/tsconfig.app.json ui/tsconfig.json ui/package.json ui/.browserslistrc /ui/
+COPY ui/angular.json ui/tsconfig.app.json ui/tsconfig.json ui/package.json /ui/
+WORKDIR /ui
+RUN yarn install --non-interactive
 
 # Python base
 # ############################################################
@@ -32,11 +33,11 @@ RUN apt-get purge -y --auto-remove gcc build-essential libffi-dev libssl-dev
 
 # Angular build
 # ############################################################
-# FROM node-base AS node-build
+FROM node-base AS node-build
 
-# ARG build_for=prod
-# COPY ui/src /ui/src
-# RUN yarn run build:${build_for}
+ARG build_for=prod
+COPY ui/src /ui/src
+RUN yarn run build:${build_for}
 
 # Final build
 # ############################################################
@@ -53,14 +54,11 @@ RUN addgroup app --gid 10000 && \
             --shell /sbin/nologin \
             --no-create-home \
             --uid 10000 app
-            
-
-#COPY --from=node-build /ui/dist/keg-volume-monitor /keg-volume-monitor/api/static/
-COPY /ui /keg-volume-monitor/api/static/
 
 COPY config /keg-volume-monitor/config
 COPY api /keg-volume-monitor/api
 COPY entrypoint.sh /keg-volume-monitor/api
+COPY --from=node-build /ui/dist/keg-volume-monitor /keg-volume-monitor/api/static/
 
 WORKDIR /keg-volume-monitor/api
 
