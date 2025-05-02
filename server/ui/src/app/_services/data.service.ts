@@ -82,4 +82,16 @@ export class DataService {
 
     return this.http.get<Device[]>(url).pipe(catchError((err) => {return this.getError(err)}));
   }
+
+  getDevice(id: string): Observable<Device> {
+    const url: string = `${this.apiBaseUrl}/devices/${id}`;
+
+    return this.http.get<Device>(url).pipe(catchError((err) => {return this.getError(err)}));
+  }
+
+  updateDevice(id: string, data:any): Observable<Device> {
+    const url: string = `${this.apiBaseUrl}/devices/${id}`;
+
+    return this.http.patch<Device>(url, data).pipe(catchError((err) => {return this.getError(err)}));
+  }
 }

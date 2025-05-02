@@ -11,8 +11,6 @@ export class Device {
   chipType!: string;
   chipId!: string;
   chipModel!: string;
-  offset!: number;
-  offsetUnit!: string;
   measurementCount!: number;
   latestMeasurement!: number;
   latestMeasurementUnit!: string;
@@ -25,4 +23,5 @@ export class Device {
   startVolume!: number;
   startVolumeUnit!: string;
   displayVolumeUnit!: string;
+  online!: boolean;
 }

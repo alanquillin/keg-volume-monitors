@@ -1,22 +1,66 @@
+@if(editWeightScale){
+<h1>Edit Device: ({{selectedDevice.name}})</h1>
+} @else {
 <h1>Devices</h1>
+}
 
 @if(loading) {
 <div>
-    Loading device list calm down.
+    Loading... calm down.
 </div>
 }
 @if(!loading){
+@if(editWeightScale){
+<form [formGroup]="editWeightScaleForm" (ngSubmit)="onEditWeightScaleSubmit()">
+    <div>
+        <label for="name">Name:</label>
+        <input type="text" id="name" formControlName="name">
+    </div>
+    <div>
+        <label for="emptyKegVolume">Empty Keg Volume:</label>
+        <input type="number"  id="emptyKegWeight" formControlName="emptyKegWeight">
+        <select name="emptyKegWeightUnit" id="emptyKegWeightUnit" formControlName="emptyKegWeightUnit" class="form-control">
+            @for(unit of allowedMassUnits; track unit) {
+            <option [value]="unit">{{ unit }}</option>
+            }
+        </select>
+    </div>
+    <div>
+        <label for="startVolume">Start Volume:</label>
+        <input type="number"  id="startVolume" formControlName="startVolume">
+        <select name="startVolumeUnit" id="startVolumeUnit" formControlName="startVolumeUnit" class="form-control">
+            @for(unit of allowedLiquidUnits; track unit) {
+            <option [value]="unit">{{ unit }}</option>
+            }
+        </select>
+    </div>
+    <div>
+        <label for="displayVolumeUnit">Display Volume Unit:</label>
+        <select name="displayVolumeUnit" id="displayVolumeUnit" formControlName="displayVolumeUnit" class="form-control">
+            @for(unit of allowedLiquidUnits; track unit) {
+            <option [value]="unit">{{ unit }}</option>
+            }
+        </select>
+    </div>
+    <button type="submit" [disabled]="!editWeightScaleForm.valid || !editWeightScaleHasChanges()">Save</button>
+    <button [disabled]="updating" (click)="cancelEditWeightScale()">Cancel</button>
+</form>
+}
+@else {
 <div >
     @for(d of devices; track d.id) {
     <div>
         <h3>{{d.name}} ({{d.deviceType}})</h3>
+        <strong>Online:</strong> {{d.online}}<br/>
         <strong>Id:</strong> {{d.id}}<br/>
         <strong># of measurements:</strong> {{d.measurementCount}}<br/>
         <strong>Last Measurement:</strong> {{d.latestMeasurement}}{{d.latestMeasurementUnit}} (<strong>taken on:</strong> {{d.latestMeasurementTakenOn}})<br/>
-        <strong>Volume remaining:</strong> {{d.totalVolumeRemaining}} {{d.displayVolumeUnit}} (<strong>{{d.percentRemaining}}%</strong>)
+        <strong>Volume remaining:</strong> {{d.totalVolumeRemaining}} {{d.displayVolumeUnit}} (<strong>{{d.percentRemaining}}%</strong>)<br/>
+        <button (click)="editDevice(d)">Edit</button>
     </div>
     } @empty {
         No devices found.
     }
 </div>
+}
 }
