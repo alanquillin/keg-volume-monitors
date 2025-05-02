@@ -2,10 +2,11 @@ from db import session_scope
 from db.devices import Devices as DevicesDB
 
 from lib import devices
-from lib.util import calculate_volume_ml_from_weight
+from lib.units import convert_from_ml, convert_to_ml
+from lib.util import calculate_volume_ml_from_weight, obj_keys_camel_to_snake
 from resources import BaseResource
+
 from flask_restx import Namespace, Resource, fields, reqparse, inputs
-from flask_restx.utils import camel_to_dash
 
 api = Namespace('devices', description='Manage devices')
 
@@ -33,7 +34,8 @@ device_mod = api.model("Device", {
         "latestMeasurementUnit": fields.String(description=""),
         "latestMeasurementTakenOn": fields.DateTime(dt_format="iso8601", description=""),
         "percentRemaining": fields.Float(description="The percent volume remaining"),
-        "totalVolumeRemaining": fields.Float(description="Total volume remaining")
+        "totalVolumeRemaining": fields.Float(description="Total volume remaining"),
+        "online": fields.Boolean(description="")
     } | IN_FIELDS)
 
 class DeviceResource(BaseResource):
@@ -55,8 +57,7 @@ class DeviceResource(BaseResource):
         unit = dev.get(unit_key, "ml")
 
         if unit != "ml":
-            #TODO Convert to grams
-            pass
+            value = convert_to_ml(value, unit)
 
         return value
 
@@ -81,22 +82,27 @@ class DeviceResource(BaseResource):
         
         if total_remaining > 0:
             percent_remaining = total_remaining / start_vol_ml * 100
-
-        if dev.get("displayVolumeUnit", "ml") != "ml":
-            #TODO convert to ml
-            pass
+            displayUnit = dev.get("displayVolumeUnit", "ml")
+            if displayUnit != "ml":
+                total_remaining= convert_from_ml(total_remaining, displayUnit)
+                pass
 
         dev["percentRemaining"] = round(percent_remaining, 2)
         dev["totalVolumeRemaining"] = round(total_remaining, 2)
         return dev
     
-    def transform_response(self, devices, transform_keys=None, remove_keys=None):
-        res = BaseResource.transform_response(devices, transform_keys=transform_keys, remove_keys=remove_keys)
+    def transform_response(self, dev, transform_keys=None, remove_keys=None):
+        if isinstance(dev, list):
+            return [self.transform_response(_dev, transform_keys, remove_keys) for _dev in dev]
         
-        if isinstance(res, list):
-            return [self.calculate_and_set_remaining_volume(dev) for dev in res]
+        res = BaseResource.transform_response(dev, transform_keys=transform_keys, remove_keys=remove_keys)
+        res = self.calculate_and_set_remaining_volume(res)
+        
+        online = devices.get(dev, "online")
+        if online is not None:
+            res["online"] = online
 
-        return self.calculate_and_set_remaining_volume(res)
+        return res
 
 @api.route('', '/')
 class Devices(DeviceResource):
@@ -146,7 +152,7 @@ class Devices(DeviceResource):
             if "displayUnit" not in keys:
                 data["displayUnit"] = data["offsetUnit"]
             
-            dev = DevicesDB.create(db_session, **camel_to_dash(data))
+            dev = DevicesDB.create(db_session, **obj_keys_camel_to_snake(data))
             return self.transform_response(dev)
 
 @api.route('/find')
@@ -215,7 +221,11 @@ class Device(BaseResource):
                 dt = data.get("deviceType", "unknown").lower()
                 if dt not in DEVICE_TYPES:
                     api.abort(400, f"Invalid device type '{dt}'.  Supported types are: [weight, flow]")
-            dev = DevicesDB.update(db_session, id, **camel_to_dash(data))
+
+            self.logger.debug(f"PATCH data for {id}: JSON data {data}")
+            u_data = obj_keys_camel_to_snake(data)
+            self.logger.debug(f"Updating device {id} with data {u_data}")
+            dev = DevicesDB.update(db_session, id, **u_data)
             return self.transform_response(dev)
         
     @api.doc('delete_device')
@@ -242,9 +252,36 @@ class DeviceRPC(BaseResource):
             dev = DevicesDB.get_by_pkey(db_session, id)
             if not dev:
                 api.abort(404)
-            if func_name in ["get_details", "get_description", "supports_status_check", "online"]:
-                return devices.get(dev, func_name)
-            elif func_name in ["ping", "start_calibration", "calibrate", "tare", "clear_memory", "send_most_recent_sample", "start_maintenance_mode", "stop_maintenance_mode"]: 
+            if func_name in ["ping", "start_calibration", "calibrate", "tare", "clear_memory", "send_most_recent_sample", "start_maintenance_mode", "stop_maintenance_mode"]: 
                 return devices.run(dev, func_name)
             else:
                 api.abort(400, "Unsupported RPC function")
+
+
+@api.route("/<id>/manufacturer_info/<key>")
+@api.route("/<id>/manufacturer_info")
+@api.param("id", "The device id")
+@api.param('key', "the name of optional data key.  If not provided, all available manufacturer data will be returned")
+@api.response(404, 'Device not found')
+class DeviceManufacturerInfo(BaseResource):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+    
+    @api.doc('device_manufacturer_info')
+    def get(self, id, key=None):
+        with session_scope(self.config) as db_session:
+            dev = DevicesDB.get_by_pkey(db_session, id)
+            if not dev:
+                api.abort(404)
+            if not key:
+                return devices.get(dev, "get_details")
+            elif key in ["get_details", "get_description", "supports_status_check", "online"]:
+                return devices.get(dev, key)
+            else:
+                details = devices.get(dev, "get_details")
+                if not details:
+                    return None
+                keys = details.keys()
+                if key not in keys:
+                    api.abort(400, "Unsupported key function")
+                return details.get(key)

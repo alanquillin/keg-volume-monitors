@@ -108,3 +108,13 @@ def is_valid_uuid(uuid_to_test, version=4):
 # Calculates the volume (in ml) from the weight.  
 def calculate_volume_ml_from_weight(weight_g, density_mlg=1):
     return weight_g / density_mlg
+
+def obj_keys_camel_to_snake(data):
+    n_data = {}
+
+    for k,v in data.items():
+        if isinstance(v, dict):
+            v = obj_keys_camel_to_snake
+        n_data[camel_to_snake(k)] = v
+    
+    return n_data

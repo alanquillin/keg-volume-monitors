@@ -9,10 +9,12 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.schema import Index
 
+from lib.logging import getLogger
 from db import Base, DictifiableMixin, QueryMethodsMixin, try_return_all
 from db.device_measurements import DeviceMeasurements
 from db.types.nested import NestedMutableDict
 
+LOG = getLogger(__name__)
 
 class Devices(Base, DictifiableMixin, QueryMethodsMixin):
 
@@ -68,14 +70,11 @@ class Devices(Base, DictifiableMixin, QueryMethodsMixin):
     __table_args__ = (Index("ix_sensor_chip_type_and_chip_id", chip_type, chip_id, unique=False),)
 
     @classmethod
-    def _get_with_measurement_stats(cls, session, filters=None, **kwargs):
-        query = session.query(cls, func.count(DeviceMeasurements.id).label("measurement_count"))
-        if filters:
-            query = query.filter(*filters)
-        return query.join(DeviceMeasurements).group_by(Devices.id)
+    def _build_query_with_measurement_stats(cls, session, **kwargs):
+        return session.query(cls, func.count(DeviceMeasurements.id).label("measurement_count")).join(DeviceMeasurements).group_by(Devices.id)
 
     @classmethod
-    def _parse_response_with_measurement_stats(cls, session, res):
+    def _parse_result_with_measurement_stats(cls, session, res, **kwargs):
         dev = None
         if type(res) is Devices:
             dev = res
@@ -91,29 +90,34 @@ class Devices(Base, DictifiableMixin, QueryMethodsMixin):
         return dev
     
     @classmethod
-    def _all_with_measurement_stats(cls, session, filters=None, **kwargs):
-        res = try_return_all(Devices._get_with_measurement_stats(session, filters))
+    def _all_with_measurement_stats(cls, session, query=None, **kwargs):
+        if query is None:
+            query = Devices._build_query_with_measurement_stats(session)
+
+        res = try_return_all(query)
         if not res:
             return res
         
         devices = []
         for r in res:
-            devices.append(Devices._parse_response_with_measurement_stats(session, r))
+            devices.append(Devices._parse_result_with_measurement_stats(session, r))
 
         return devices
     
     @classmethod
-    def get_with_measurement_stats(cls, session, pk_id,**kwargs):
-        res = Devices._get_with_measurement_stats(session, (Devices.id == pk_id)).first()
-        return Devices._parse_response_with_measurement_stats(session, res)
+    def get_with_measurement_stats(cls, session, pk_id, **kwargs):
+        LOG.debug(f"Querying for pk {pk_id}")
+        res = cls._build_query_with_measurement_stats(session, **kwargs).filter(Devices.id == pk_id).first()
+        return cls._parse_result_with_measurement_stats(session, res, **kwargs)
         
     @classmethod
     def get_all_with_measurement_stats(cls, session, **kwargs):
-        return Devices._all_with_measurement_stats(session)
+        return Devices._all_with_measurement_stats(session, **kwargs)
                  
     @classmethod
     def get_by_chip_id(cls, session, chip_type, chip_id, **kwargs):
-        return Devices._all_with_measurement_stats(session, (and_(Devices.chip_type.ilike(chip_type), Devices.chip_id.ilike(chip_id))))
+        q = Devices._build_query_with_measurement_stats(session, **kwargs).filter(and_(Devices.chip_type.ilike(chip_type), Devices.chip_id.ilike(chip_id)))
+        return Devices._all_with_measurement_stats(session, query=q, **kwargs)
     
 
         
