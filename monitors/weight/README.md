@@ -1,12 +1,13 @@
 # Weight Based Keg Volume Monitor
 
-Inspired by the now discontinued Plaato keg, this monitor uses the weight of the keg over time ter determine the current
+Inspired by the now discontinued Plaato keg, this monitor uses the weight of the keg over time to determine the current
  volume based on the weight of the empty keg and the weight of a full keg.  I love the Plaato keg, and was sad when they
- annouced their pivot away from home brewing gear and would no longer be selling, innovating or supporting the Plaato
+ announced their pivot away from home brewing gear and would no longer be selling, innovating or supporting the Plaato
  keg.  In my search I found a few other DIY clones using low cost hardware and existing technologies.  However, I wanted
- to build some truly DIY and fully opensource.  So I designed my own keg scale using the Particle Photon 2 platform.
+ to build some truly DIY with fully opensource software.  So I designed my own keg scale using the Particle Photon 2 platform.
 
-![alt text](_img/weight_circuit.png "Title")
+![Weight scale monitor pic](../../docs/img/weight-scale-with-keg.png)
+![Weight scale monitor - load cell circuit diagram](../../docs/img/weight_circuit.png)
 
 ## Parts required
 
@@ -43,7 +44,7 @@ I have added the [EAGLE files](./eagle) to manufacture helper riser boards simpl
 
 ## Links
 
-- [Another DIY Plaato Keg clone](https://www.youtube.com/watch?v=QF1B8yD9jy4) from the [Trouble Brewing](https://www.youtube.com/@TroubleBrewing) 
+- [Another DIY Plaato Keg clone](https://www.youtube.com/watch?v=QF1B8yD9jy4) from the [Trouble Brewing](https://www.youtube.com/@TroubleBrewing)
 YouTube channel.  This one uses a NodeMCU 8266 module and Home Assistant Server.  However, I am not a huge fan of these modules or Home Assistant
-and I wanted to build something fully opensource.
+and I wanted to build something with fully opensource software.
 - [Wiring up and calibrating HX711 with 4 load cell using arduino](https://www.youtube.com/watch?v=LIuf2egMioA)
