@@ -1,10 +1,20 @@
-import os
+from datetime import datetime
+import uuid
 
 from lib.config import Config
 from lib import logging
 from lib.util import snake_to_camel
 
+from flask import request
 from flask_restx import Resource
+
+DEVICE_STATE_MAP = {
+    1: "ready",
+    2: "ready_no_service",
+    10: "calibration_mode_enabled",
+    11: "calibrating",
+    99: "maintenance_mode_enabled"
+}
 
 class BaseResource(Resource):
     def __init__(self, *args, **kwargs):
@@ -49,6 +59,24 @@ class BaseResource(Resource):
             if isinstance(val, dict):
                 val = BaseResource.transform_response(val, transform_keys=transform_keys, remove_keys=remove_keys)
 
+            if isinstance(val, uuid.UUID):
+                val = str(val)
+
+            if isinstance(val, datetime):
+                val = val.isoformat()
+
             transformed[_key] = val
 
         return transformed
+    
+class AsyncBaseResource(BaseResource):
+    async def dispatch_request(self, *args, **kwargs):
+        """
+        Dispatch the request to the appropriate method.
+        """
+        # Get the method name from the request
+        method_name = request.method.lower()
+        # Get the method from the class
+        method = getattr(self, method_name)
+        # Call the method and await its result
+        return await method(*args, **kwargs)

@@ -94,4 +94,25 @@ export class DataService {
 
     return this.http.patch<Device>(url, data).pipe(catchError((err) => {return this.getError(err)}));
   }
+
+  enableMaintenanceMode(id: string): Observable<Device> {
+    return this.rpc(id, "start_maintenance_mode", {});
+  }
+
+  disableMaintenanceMode(id: string): Observable<Device> {
+    return this.rpc(id, "stop_maintenance_mode", {});
+  }
+
+  enableCalibrationMode(id: string): Observable<Device> {
+    return this.rpc(id, "start_calibration", {});
+  }
+
+  calibrate(id: string, knownWeight:number): Observable<Device> {
+    return this.rpc(id, "calibrate", {knownWeight: knownWeight});
+  }
+
+  rpc(id: string, func:string, data:any): Observable<Device> {
+    const url: string = `${this.apiBaseUrl}/devices/${id}/rpc/${func}`;
+    return this.http.post<Device>(url, data).pipe(catchError((err) => {return this.getError(err)}));
+  }
 }

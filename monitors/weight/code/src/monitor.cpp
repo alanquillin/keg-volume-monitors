@@ -8,11 +8,16 @@
 #include "service.h"
 
 SYSTEM_MODE(SEMI_AUTOMATIC);
-// Run Setup code immediately.  This is enabled by befault in OS v6.2.0 and above
+// Run Setup code immediately.  This is enabled by default in OS v6.2.0 and above
 #if (SYSTEM_VERSION < SYSTEM_VERSION_DEFAULT(6, 2, 0))
 SYSTEM_THREAD(ENABLED);
 #endif
 
+// declare function prototypes
+bool sendStatus();
+bool getSetDeviceData();
+
+Timer statusUpdater(STATUS_UPDATE_PERIOD_MS, sendStatus);
 
 SerialLogHandler logHandler(LOG_LEVEL_WARN, {
     { "app", LOG_LEVEL_TRACE }, // Default logging level for all app messages
@@ -34,6 +39,28 @@ bool CALIBRATING = false;
 bool TESTING_LEDS = false;
 bool MAINTENANCE_MODE = false;
 
+int _getState(bool doPing) {
+    if (CALIBRATING) {
+        return 11;
+    }
+
+    if (CALIBRATION_MODE_ENABLED) {
+        return 10;
+    }
+
+    if (MAINTENANCE_MODE) {
+        return 99;
+    }
+
+    if (doPing) {
+        if (!dataService.ping()) {
+            return 2;
+        }
+    }
+
+    return 1;
+}
+
 void storeCalibrationScale(float cal) {
     EEPROM.put(0, cal);
 }
@@ -54,6 +81,39 @@ long getCalibrationOffset() {
     return offset;
 }
 
+bool sendStatus() {
+    if (deviceData.isNull) {
+        Log.trace("No device info currently set, attempting to retrieve before sending status");
+        if(!getSetDeviceData()){
+            Log.warn("No device info found from service.  Service may not be available ATM, skipping sendStatus.");
+            return false;
+        }
+    }
+
+    device_status_t status;
+    status.id = deviceData.id;
+    status.latestMeasurement = LAST_MEASUREMENT;
+    status.latestMeasurementTS = LAST_MEASUREMENT_TS;
+    
+    status.state = _getState(false);
+    return dataService.sendStatus(status);
+}
+
+void tare() {
+    scale.power_up();
+    scale.tare();
+    scale.power_down();
+    storeCalibrationOffset(scale.get_offset());
+    Log.trace("Tare complete, offset stored: %li", scale.get_offset());
+}
+
+void initCalibration() {
+    CALIBRATION_MODE_ENABLED = true;
+
+    scale.set_scale();
+    tare();
+}
+
 // Puts the scale in calibration mode and resets.  Assumes the scale is clear or has the inital tare weight on
 /**
  * @brief CLOUD FUNCTION CALLBACK - Performs a tare function and stores the offset in memory
@@ -61,12 +121,8 @@ long getCalibrationOffset() {
  * @param _ String: ignored and unused
  * @return int 
  */
-int tare(String _ = "") {
-    scale.power_up();
-    scale.tare();
-    scale.power_down();
-    storeCalibrationOffset(scale.get_offset());
-    Log.trace("Tare complete, offset stored: %li", scale.get_offset());
+int tareCld(String _ = "") {
+    tare();
     return 1;
 }
 
@@ -75,12 +131,15 @@ int tare(String _ = "") {
  * 
  * @param _ String: ignored and unused
  * @return int 
+ *      @error codes:
+ *          -99 - Function succeeded but was unable to send the status update to the service
  */
-int initCalibration(String _ = "") {
-    CALIBRATION_MODE_ENABLED = true;
-    scale.set_scale();
-    tare();
+int initCalibrationCld(String _ = "") {
+    initCalibration();
     
+    if (!sendStatus()) {
+        return -99;
+    }
     return 1;
 }
 
@@ -92,8 +151,9 @@ int initCalibration(String _ = "") {
  *      @error codes:
  *          -1 - If the device is currently calibration
  *          -2 - If there is no previous calibration value found.
+ *          -99 - Function succeeded but was unable to send the status update to the service
  */
-int cancel_calibration(String _ = "") {
+int cancelCalibrationCld(String _ = "") {
     if (CALIBRATING) {
         return -1;
     }
@@ -109,6 +169,9 @@ int cancel_calibration(String _ = "") {
     scale.set_offset(offset);
     
     CALIBRATION_MODE_ENABLED = false;
+    if(!sendStatus()) {
+        return -99;
+    }
     return 1;
 }
 
@@ -119,7 +182,7 @@ int cancel_calibration(String _ = "") {
  * @return int 
  */
 
-int cleanMemAndRestart(String _ = "") {
+int cleanMemAndRestartCld(String _ = "") {
   EEPROM.clear();
   System.reset(2);
   return 1;
@@ -136,6 +199,7 @@ int cleanMemAndRestart(String _ = "") {
  * @return int - A value of 1 is return to represent successful calibration, negative numbers return indicate an error
  *      @error codes:
  *          -1 - Unable to parse input value to float
+ *          -99 - Function succeeded but was unable to send the status update to the service
  * 
  * 
  * TODO: 
@@ -143,7 +207,7 @@ int cleanMemAndRestart(String _ = "") {
  *        been removed or changed while calibration was in progress
  */
  
-int calibrate(String calWeight_s) {
+int calibrateCld(String calWeight_s) {
     float calWeight = calWeight_s.toFloat();
     if (calWeight == 0 && calWeight_s != "0") {
         return -1;
@@ -159,6 +223,7 @@ int calibrate(String calWeight_s) {
     }
     
     CALIBRATING = true;
+    sendStatus();
     Log.info("Starting calibration.  Known calibration weight: %0.2f", calWeight);
     float units_t = 0;
     int cnt = 10;
@@ -191,6 +256,9 @@ int calibrate(String calWeight_s) {
     scale.power_down();
     CALIBRATION_MODE_ENABLED = false;
     CALIBRATING = false;
+    if(!sendStatus()){
+        return -99;
+    }
     return 1;
 }
 
@@ -201,7 +269,7 @@ int calibrate(String calWeight_s) {
  * @param _ String: ignored and unused
  * @return int 
  */
-int test_leds(String _ = "") {
+int testLedsCld(String _ = "") {
     if (CALIBRATING || CALIBRATION_MODE_ENABLED) {
         Log.error("Cannot run LED test as calibration is in process.");
         return -1;
@@ -231,31 +299,31 @@ int test_leds(String _ = "") {
 }
 
 /**
- * @brief CLOUD FUNCTION CALLBACK - Sends the last stored sample to the data service
+ * @brief CLOUD FUNCTION CALLBACK - Sends the current device status to service
  * 
  * @param _ String: ignored and unused
- * @return int A value of 1 is return to represent successful dqat push
+ * @return int A value of 1 is return to represent successful data push
  *      @error codes:
  *          -1 - Failed to push the data to the data service
  *          -2 - The extended device information could not be retrieved from the data service
  *          -3 - No sample has been taken yet
  */
-int sendMostRecentSample(String _ = "") {
+int sendStatusCld(String _ = "") {
     if (deviceData.isNull) {
         Log.info("Extended device data not found from data service, attempting to discover...");
         deviceData = dataService.findDevice();
-    }
 
-    if (deviceData.isNull) {
-        Log.error("discovery failed, no extended device data could be retrieved form the data service");
-        return -2;
+        if (deviceData.isNull) {
+            Log.error("discovery failed, no extended device data could be retrieved form the data service");
+            return -2;
+        }
     }
 
     if (LAST_MEASUREMENT_TS == 0) {
         return -3;
     }
     
-    if (dataService.sendMeasurement(deviceData.id, LAST_MEASUREMENT, LAST_MEASUREMENT_TS)) {
+    if (sendStatus()) {
         Log.info("Successfully saved the measurement with the Data Service");
         return 1;
     } else {
@@ -263,8 +331,14 @@ int sendMostRecentSample(String _ = "") {
         return -1;
     }
 }
-
-int startMaintenanceMode(String _ = "") {
+/**
+ * @brief CLOUD FUNCTION CALLBACK - Puts device in maintenance mode
+ * 
+ * @param _ String: ignored and unused
+ * @return int 
+ *          -99 - Function succeeded but was unable to send the status update to the service
+ */
+int startMaintenanceModeCld(String _ = "") {
     if (CALIBRATING || CALIBRATION_MODE_ENABLED) {
         Log.error("Cannot enter maintenance mode while calibration is in process.");
         return -1;
@@ -272,10 +346,20 @@ int startMaintenanceMode(String _ = "") {
 
     Log.info("Entering maintenance mode.");
     MAINTENANCE_MODE = true;
+    if(!sendStatus()){
+        return -99;
+    }
     return 1;
 }
 
-int stopMaintenanceMode(String _ = "") {
+/**
+ * @brief CLOUD FUNCTION CALLBACK - Exits maintenance mode
+ * 
+ * @param _ String: ignored and unused
+ * @return int 
+ *          -99 - Function succeeded but was unable to send the status update to the service
+ */
+int stopMaintenanceModeCld(String _ = "") {
     if (CALIBRATING || CALIBRATION_MODE_ENABLED) {
         Log.error("Cannot exit maintenance mode while calibration is in process.");
         return -1;
@@ -283,6 +367,9 @@ int stopMaintenanceMode(String _ = "") {
 
     Log.info("Exiting maintenance mode.");
     MAINTENANCE_MODE = false;
+    if(!sendStatus()){
+        return -99;
+    }
     return 1;
 }
 
@@ -293,26 +380,34 @@ int stopMaintenanceMode(String _ = "") {
  * @return int Value representing this current state of the device
  *          1 - Normal function and data service available
  *          2 - Normal function but data service is not available
- *          3 - Caiibration mode enabled
- *          4 - Calibrating in progress
+ *          10 - Calibration mode enabled
+ *          11 - Calibration in progress
  *          99 - Maintenance mode
  */
-int getState(String _ = "") {
-    if (CALIBRATING) {
-        return 4;
+int getStateCld(String _ = "") {
+    return _getState(true);
+}
+
+bool getSetDeviceData() {
+    bool res = dataService.ping();
+    if (!res) {
+        Log.error("Data service ping failed.");
+        return false;
+    } else {
+        Log.info("Data service ping successful");
+        deviceData = dataService.findDevice();
+        if (deviceData.isNull) {
+            Log.error("Device not found with Data Service.");
+            deviceData = dataService.registerDevice();
+            if (deviceData.isNull) {
+                Log.error("Failed to register device with the Data Service");
+                return false;
+            }
+        } else {
+            Log.trace("Found or successfully registered device with the Data Service.  Id: %s", deviceData.id.c_str());
+        }
     }
-
-    if (CALIBRATION_MODE_ENABLED) {
-        return 3;
-    }
-
-    if (MAINTENANCE_MODE) {
-        return 99;
-    }
-
-    // TODO: Need to add a check for the last call to the data service
-
-    return 1;
+    return true;
 }
 
 void setup() {
@@ -339,16 +434,16 @@ void setup() {
     scale.begin();
     scale.power_down();
     
-    Particle.function("startCalibration", initCalibration);
-    Particle.function("cancelCalibration", cancel_calibration);
-    Particle.function("calibrate", calibrate);
-    Particle.function("tare", tare);
-    Particle.function("testLEDs", test_leds);
-    Particle.function("clearMemory", cleanMemAndRestart);
-    Particle.function("sendMostRecentSample", sendMostRecentSample);
-    Particle.function("startMaintenanceMode", startMaintenanceMode);
-    Particle.function("stopMaintenanceMode", stopMaintenanceMode);
-    Particle.function("getState", getState);
+    Particle.function("startCalibration", initCalibrationCld);
+    Particle.function("cancelCalibration", cancelCalibrationCld);
+    Particle.function("calibrate", calibrateCld);
+    Particle.function("tare", tareCld);
+    Particle.function("testLEDs", testLedsCld);
+    Particle.function("clearMemory", cleanMemAndRestartCld);
+    Particle.function("sendStatus", sendStatusCld);
+    Particle.function("startMaintenanceMode", startMaintenanceModeCld);
+    Particle.function("stopMaintenanceMode", stopMaintenanceModeCld);
+    Particle.function("getState", getStateCld);
     
     Log.trace("Connecting to Particle Cloud");
     Particle.connect();
@@ -358,23 +453,7 @@ void setup() {
         Log.error("Failed to connect to Particle cloud");
     }
 
-    bool res = dataService.ping();
-    if (!res) {
-        Log.error("Data service ping failed.");
-    } else {
-        Log.info("Data service ping successful");
-        deviceData = dataService.findDevice();
-        if (deviceData.isNull) {
-            Log.error("Device not found with Data Service.");
-            deviceData = dataService.registerDevice();
-            if (deviceData.isNull) {
-                Log.error("Failed to register device with the Data Service");
-            }
-        }
-        if (!deviceData.isNull) {
-            Log.trace("Found or successfully registered device with the Data Service.  Id: %s", deviceData.id.c_str());
-        }
-    }
+    getSetDeviceData();
 
     float cal = getCalibrationScale();
     long calOffset = getCalibrationOffset();
@@ -388,7 +467,10 @@ void setup() {
         scale.set_offset(calOffset);
     }
 
+    statusUpdater.start();
+    sendStatus();
     led.stopBlink();
+
     Log.trace("Scale config: offset: %li, scale: %.2f", scale.get_offset(), scale.get_scale());
     Log.trace("Startup sequence complete!");
 }
@@ -451,35 +533,38 @@ void loop() {
         float units = scale.get_units(10);
         scale.power_down(); // put the ADC in sleep mode
         
-        Log.trace("Sample taken: %.2f", units);
-            
-        if (units < DEFAULT_EMPTY_KEG_W) {
-            led.setColor(RGB_WHITE);
-        } else {
-            led.setColor(RGB_GREEN);
-            float diff = units * DIFF_THRESHOLD;
-            if (units > (LAST_MEASUREMENT + diff) || units < (LAST_MEASUREMENT - diff)) {
-                Log.info("New measurement found that exceeds the differential threshold.  Measurement value: %.2f", units);
-                Log.trace("Last measurement: %.2f, current measurements: %.2f, differential: %.2f, differential threshold: %.2f", LAST_MEASUREMENT, units, diff, DIFF_THRESHOLD);
+        // The sampling can take a second or 2, and in the mean time, cloud fucntions can change the state, this checks that before doing anything with the value.
+        if (!BTN_PRESSED && !TESTING_LEDS && !CALIBRATING && !CALIBRATION_MODE_ENABLED && !MAINTENANCE_MODE) {
+            Log.trace("Sample taken: %.2f", units);
+                
+            if (units < DEFAULT_EMPTY_KEG_W) {
+                led.setColor(RGB_WHITE);
+            } else {
+                led.setColor(RGB_GREEN);
+                float diff = units * DIFF_THRESHOLD;
+                if (units > (LAST_MEASUREMENT + diff) || units < (LAST_MEASUREMENT - diff)) {
+                    Log.info("New measurement found that exceeds the differential threshold.  Measurement value: %.2f", units);
+                    Log.trace("Last measurement: %.2f, current measurements: %.2f, differential: %.2f, differential threshold: %.2f", LAST_MEASUREMENT, units, diff, DIFF_THRESHOLD);
 
-                LAST_MEASUREMENT = units;
-                LAST_MEASUREMENT_TS = Time.now();
+                    LAST_MEASUREMENT = units;
+                    LAST_MEASUREMENT_TS = Time.now();
 
-                if (deviceData.isNull) {
-                    Log.info("Extended device data not found from data service, attempting to discover");
-                    deviceData = dataService.findDevice();
-                }
-
-                if (deviceData.isNull) {
-                    Log.warn("UNKNOWN id for the device from the device service...");
-                } else {
-                    led.blinkFast();
-                    if (dataService.sendMeasurement(deviceData.id, units, LAST_MEASUREMENT_TS)) {
-                        Log.info("Successfully saved the measurement with the Data Service");
-                    } else {
-                        Log.error("Failed to save the measurement with the Data Service");
+                    if (deviceData.isNull) {
+                        Log.info("Extended device data not found from data service, attempting to discover");
+                        deviceData = dataService.findDevice();
                     }
-                    led.stopBlink();
+
+                    if (deviceData.isNull) {
+                        Log.warn("UNKNOWN id for the device from the device service...");
+                    } else {
+                        led.blinkFast();
+                        if (dataService.sendMeasurement(deviceData.id, units, LAST_MEASUREMENT_TS)) {
+                            Log.info("Successfully saved the measurement with the Data Service");
+                        } else {
+                            Log.error("Failed to save the measurement with the Data Service");
+                        }
+                        led.stopBlink();
+                    }
                 }
             }
         }

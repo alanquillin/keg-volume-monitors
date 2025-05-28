@@ -2,36 +2,26 @@ import argparse
 import os
 import sys
 import uuid
-from datetime import timedelta
 
 from lib import logging
 from lib.config import Config
 
 from resources.devices import api as DevicesNS
 from resources.device_measurements import api as DeviceMeasurementsNS
+from resources.device_status import api as DeviceStatusNS
+
 
 CONFIG = Config()
 CONFIG.setup(config_files=["default.json"])
 logging.init(fmt=logging.DEFAULT_LOG_FMT)
 
-from flask import Flask, send_from_directory, render_template
+from flask import Flask, send_from_directory
 from flask.logging import create_logger
 from flask_cors import CORS
-from flask_restx import Api, Resource, fields
-from gevent.pywsgi import LoggingLogAdapter, WSGIServer  # pylint:disable=ungrouped-imports
+from flask_restx import Api, Resource
+from aiohttp import web
+from aiohttp_wsgi import WSGIHandler, serve
 
-class IgnoringLogAdapter(LoggingLogAdapter):
-    """
-    Do not let k8s spam the logs:
-    """
-
-    IGNORED_LOGS = ['"GET /health HTTP/1.1" 200']
-
-    def write(self, msg):
-        for i in self.IGNORED_LOGS:
-            if i in msg:
-                return
-        super().write(msg)
 
 STATIC_URL_PATH = "static"
 API_PREFIX = "/api/v1"
@@ -40,7 +30,7 @@ app = Flask(__name__, static_folder='static', static_url_path='')
 # NOTE!  the root path handler much be regeistered BEFORE the flask-restx API object is initialized
 # to prevent it from being hijacked!  This method serves the UI content
 @app.route('/')
-def index():
+async def index():
     dir_path = os.path.join(os.getcwd(), STATIC_URL_PATH)
     return send_from_directory(dir_path, "index.html")
 
@@ -61,6 +51,7 @@ app.config.update(
 
 api.add_namespace(DevicesNS, path=f"{API_PREFIX}/devices")
 api.add_namespace(DeviceMeasurementsNS, path=f"{API_PREFIX}/devices/<device_id>/measurements")
+api.add_namespace(DeviceStatusNS, path=f"{API_PREFIX}/devices/<id>/status")
 
 @api.route(f"{API_PREFIX}/ping")
 class Ping(Resource):
@@ -101,13 +92,14 @@ if __name__ == '__main__':
             vary_header=True,
         )
     port = CONFIG.get("api.port")
-    http_server = WSGIServer(("", port), app, log=IgnoringLogAdapter(app.logger, log_level))
     logger.debug("app.config: %s", app.config)
     logger.debug("config: %s", CONFIG.data_flat)
     logger.info("Serving on port %s", port)
 
     try:
-        http_server.serve_forever()
+        # app.run(host="0.0.0.0", port=port, debug=False)
+        wsgi_handler = WSGIHandler(app)
+        serve(app, port=port)
     except KeyboardInterrupt:
         logger.info("User interrupted - Goodbye")
         sys.exit()

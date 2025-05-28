@@ -1,0 +1,33 @@
+form {
+    div:first-of-type {
+        display: flex;
+        flex-direction: column;
+        width: 200px;
+    }
+}
+
+button {
+    margin-left: 4px;
+    margin-right: 4px;;
+}
+
+.online {
+    color: green;
+}
+
+.offline {
+    color: red;
+}
+
+.maintenance-mode {
+    color: orange;
+}
+
+.calibrating {
+    color: blue;
+}
+
+.error {
+    color: red;
+    font-weight: bold;
+}

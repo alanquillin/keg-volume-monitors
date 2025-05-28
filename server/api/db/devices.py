@@ -3,7 +3,7 @@ _TABLE_NAME = "devices"
 _PKEY = "id"
 
 from psycopg2.errors import UniqueViolation  # pylint: disable=no-name-in-module
-from sqlalchemy import Column, String, func, and_, Float
+from sqlalchemy import Column, String, func, and_, Float, Integer, ColumnDefault
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -31,6 +31,7 @@ class Devices(Base, DictifiableMixin, QueryMethodsMixin):
     start_volume = Column(Float, nullable = False)
     start_volume_unit = Column(String, nullable=False)
     display_volume_unit = Column(String, nullable=False)
+    state = Column(Integer, ColumnDefault(1), nullable=False)
     meta = Column(NestedMutableDict.as_mutable(JSONB), nullable=True)
 
     _measurement_count = None

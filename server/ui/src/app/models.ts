@@ -4,6 +4,11 @@
 /* eslint-disable no-shadow */
 
 import * as _ from 'lodash';
+import { isNilOrEmpty } from './utils/helpers';
+
+export enum DeviceState {
+  Ready, ReadyNoService, CalibrationModeEnabled, Calibrating, MaintenanceModeEnabled, Unknown
+}
 
 export class Device {
   id!: string;
@@ -24,4 +29,36 @@ export class Device {
   startVolumeUnit!: string;
   displayVolumeUnit!: string;
   online!: boolean;
+  state!: number;
+  stateStr!: string;
+
+  constructor(from?: any) {
+    if(!isNilOrEmpty(from)) {
+      this.from(from);
+    }
+  }
+
+  from(from: any): void {
+    Object.assign(this, from);
+  }
+
+  getState(): DeviceState {
+    if (this.state == 1) {
+      return DeviceState.Ready;
+    }
+    if (this.state == 2) {
+      return DeviceState.ReadyNoService;
+    }
+    if (this.state == 10) {
+      return DeviceState.CalibrationModeEnabled;
+    }
+    if (this.state == 11) {
+      return DeviceState.Calibrating;
+    }
+    if (this.state == 99) {
+      return DeviceState.MaintenanceModeEnabled;
+    }
+
+    return DeviceState.Unknown;
+  }
 }

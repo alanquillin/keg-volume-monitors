@@ -4,7 +4,7 @@ from db import session_scope
 from db.devices import Devices as DevicesDB
 from db.device_measurements import DeviceMeasurements as DeviceMeasurementsDB
 from lib.time import utcnow_aware, utcfromtimestamp_aware
-from resources import BaseResource
+from resources import AsyncBaseResource
 
 from flask_restx import Namespace, Resource, fields
 
@@ -24,13 +24,13 @@ device_measurement_mod = api.model('DeviceMeasurement', {
 })
 
 @api.route('', '/')
-class DeviceMeasurements(BaseResource):
+class DeviceMeasurements(AsyncBaseResource):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
     
     @api.doc('list_device_measurements')
-    @api.marshal_list_with(device_measurement_mod)
-    def get(self, device_id):
+    #@api.marshal_list_with(device_measurement_mod)
+    async def get(self, device_id):
         with session_scope(self.config) as db_session:
             measurements = DeviceMeasurementsDB.query(db_session, device_id=device_id)
             if measurements:
@@ -39,8 +39,8 @@ class DeviceMeasurements(BaseResource):
     
     @api.doc('save_device_measurement')
     @api.expect(save_device_measurement_mod, validate=True)
-    @api.marshal_list_with(device_measurement_mod, code=201)
-    def post(self, device_id):
+    #@api.marshal_list_with(device_measurement_mod, code=201)
+    async def post(self, device_id):
         with session_scope(self.config) as db_session:
             dev = DevicesDB.get_by_pkey(db_session, device_id)
             if not dev:
@@ -50,7 +50,7 @@ class DeviceMeasurements(BaseResource):
             keys = data.keys()
             if "u" not in keys:
                 # TODO once the calibration units are stored for the device, we need to first try and use that and then fall back to the config default
-                data["u"] = self.config.get(f"general.preferred_vol_units.{dev.device_type}")
+                data["u"] = "g" if dev.device_type == "weight" else "ml"
             else:
                 # TODO make sure the units are supported
                 pass

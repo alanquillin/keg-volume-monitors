@@ -50,4 +50,6 @@ const float DEFAULT_EMPTY_KEG_W = 4000.0;
  * less than DEFAULT_EMPTY_KEG_W */ 
 const bool ALLOW_LOW_WEIGHT_CALIBRATION = true;
 
+const int STATUS_UPDATE_PERIOD_MS = 600000;
+
 #endif

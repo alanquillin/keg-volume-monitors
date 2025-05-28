@@ -23,11 +23,41 @@ Base = declarative_base()
 
 __all__ = ["devices", "device_measurements"]
 
+
 LOGGER = logging.getLogger(__name__)
 
 @event.listens_for(Base.metadata, "before_create")
 def create_extensions(_target, connection, **_):
     connection.execute(text('CREATE EXTENSION IF NOT EXISTS "uuid-ossp";'))
+
+engine = None
+def get_engine(config):
+    global engine
+
+    if engine is None:
+        LOGGER.debug("Creating Postgres engine")
+        engine_kwargs = {
+            "connect_args": {"application_name": config.get("app_id", f"UNKNOWN=>({__name__})")},
+            "json_serializer": json.dumps,
+        }
+
+        password = config.get("db.password")
+
+        if not password:
+            engine_kwargs["connect_args"]["sslmode"] = "require"
+            rds = aws.client("rds")
+            password = rds.generate_db_auth_token(config.get("db.host"), config.get("db.port"), config.get("db.username"))
+            
+        engine = create_engine(
+            (
+                "postgresql://"
+                f"{quote(config.get('db.username'))}:{quote(password)}@{quote(config.get('db.host'))}:"
+                f"{config.get('db.port')}/{quote(config.get('db.name'))}"
+            ),
+            **engine_kwargs,
+        )
+
+    return engine
 
 
 @contextmanager
@@ -57,28 +87,7 @@ def convert_exception(sqla, psycopg2=None, new=None, param_names=None, str_match
 
 
 def create_session(config, **kwargs):
-    engine_kwargs = {
-        "connect_args": {"application_name": config.get("app_id", f"UNKNOWN=>({__name__})")},
-        "json_serializer": json.dumps,
-    }
-
-    password = config.get("db.password")
-
-    if not password:
-        engine_kwargs["connect_args"]["sslmode"] = "require"
-        rds = aws.client("rds")
-        password = rds.generate_db_auth_token(config.get("db.host"), config.get("db.port"), config.get("db.username"))
-
-    engine = create_engine(
-        (
-            "postgresql://"
-            f"{quote(config.get('db.username'))}:{quote(password)}@{quote(config.get('db.host'))}:"
-            f"{config.get('db.port')}/{quote(config.get('db.name'))}"
-        ),
-        **engine_kwargs,
-    )
-
-    return sessionmaker(bind=engine, **kwargs)()
+    return sessionmaker(bind=get_engine(config), **kwargs)()
 
 
 @contextmanager

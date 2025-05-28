@@ -11,6 +11,13 @@ typedef struct {
     String deviceType;
 } device_data_t;
 
+typedef struct {
+    String id;
+    float latestMeasurement;
+    long latestMeasurementTS;
+    int state;
+} device_status_t;
+
 class DataService 
 {
     public:
@@ -21,6 +28,7 @@ class DataService
         device_data_t getDeviceData(String id);
         device_data_t registerDevice();
         bool sendMeasurement(String id, float measurement, long timestamp);
+        bool sendStatus(device_status_t status);
 
     private:
         bool _enabled;

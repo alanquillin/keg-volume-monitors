@@ -1,11 +1,13 @@
+from time import sleep
+
 from db import session_scope
 from db.devices import Devices as DevicesDB
-
 from lib import devices
 from lib.units import convert_from_ml, convert_to_ml
 from lib.util import calculate_volume_ml_from_weight, obj_keys_camel_to_snake
-from resources import BaseResource
+from resources import AsyncBaseResource, DEVICE_STATE_MAP
 
+import asyncio
 from flask_restx import Namespace, Resource, fields, reqparse, inputs
 
 api = Namespace('devices', description='Manage devices')
@@ -21,7 +23,9 @@ IN_FIELDS = {
     "emptyKegWeightUnit": fields.String(required=False, description=""),
     "startVolume": fields.Float(required=False, description=""),
     "startVolumeUnit": fields.String(required=False, description=""),
-    "displayVolumeUnit": fields.String(required=False, description="The unit to 'display' the measurement values in.  Default = offsetUnit")
+    "displayVolumeUnit": fields.String(required=False, description="The unit to 'display' the measurement values in.  Default = offsetUnit"),
+    "state": fields.Integer(required=False, description=""),
+    "stateStr": fields.String(required=False, description="")
     # 'meta': fields.String(required=False, description='Optional metadata for the device')
 }
 
@@ -38,7 +42,7 @@ device_mod = api.model("Device", {
         "online": fields.Boolean(description="")
     } | IN_FIELDS)
 
-class DeviceResource(BaseResource):
+class DeviceResource(AsyncBaseResource):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
     
@@ -91,18 +95,20 @@ class DeviceResource(BaseResource):
         dev["totalVolumeRemaining"] = round(total_remaining, 2)
         return dev
     
-    def transform_response(self, dev, transform_keys=None, remove_keys=None):
+    async def transform_response(self, dev, transform_keys=None, remove_keys=None):
         if isinstance(dev, list):
-            return [self.transform_response(_dev, transform_keys, remove_keys) for _dev in dev]
+            return [await self.transform_response(_dev, transform_keys, remove_keys) for _dev in dev]
         
-        res = BaseResource.transform_response(dev, transform_keys=transform_keys, remove_keys=remove_keys)
+        res = AsyncBaseResource.transform_response(dev, transform_keys=transform_keys, remove_keys=remove_keys)
         res = self.calculate_and_set_remaining_volume(res)
         
-        online = devices.get(dev, "online")
+        online = await devices.get(dev.chip_id, "online")
         if online is not None:
             res["online"] = online
 
+        res["stateStr"] = DEVICE_STATE_MAP.get(dev.state, "unknown")
         return res
+    
 
 @api.route('', '/')
 class Devices(DeviceResource):
@@ -110,19 +116,19 @@ class Devices(DeviceResource):
         super().__init__(*args, **kwargs)
     
     @api.doc('list_devices')
-    @api.marshal_list_with(device_mod)
-    def get(self):
+    #@api.marshal_list_with(device_mod)
+    async def get(self):
         with session_scope(self.config) as db_session:
             devices = DevicesDB.get_all_with_measurement_stats(db_session)
             if devices:
                 self.logger.debug(f"devices found. results: {devices}")
-                return self.transform_response(devices)
+                return await self.transform_response(devices)
         return []
     
     @api.doc('create_device')
     @api.expect(new_device_mod, validate=True)
-    @api.marshal_with(device_mod, code=201)
-    def post(self):
+    #@api.marshal_with(device_mod, code=201)
+    async def post(self):
         with session_scope(self.config) as db_session:
             data = api.payload
             data["chipType"] = "Particle"
@@ -131,41 +137,42 @@ class Devices(DeviceResource):
             if existing_dev:
                 api.abort(400, "Device already exists")
 
-            dev_type = data.get("deviceType", "unknown").lower()
-            if dev_type not in DEVICE_TYPES:
-                api.abort(400, f"Invalid device type '{dev_type}'.  Supported types are: [weight, flow]")
+        dev_type = data.get("deviceType", "unknown").lower()
+        if dev_type not in DEVICE_TYPES:
+            api.abort(400, f"Invalid device type '{dev_type}'.  Supported types are: [weight, flow]")
+        
+        keys = data.keys()
+        if dev_type == "weight":
+            if "emptyKegWeight" not in keys:
+                data["emptyKegWeight"] = 0
             
-            keys = data.keys()
-            if dev_type == "weight":
-                if "emptyKegWeight" not in keys:
-                    data["emptyKegWeight"] = 0
-                
-                if "emptyKegWeighUnit" not in keys:
-                    data["emptyKegWeightUnit"] = "g"
-            
-            if "startVolume" not in keys:
-                data["startVol"] = 0
-            
-            if "startVolumeUnit" not in keys:
-                data["startVolumeUnit"] = "ml"
-            
-            if "displayUnit" not in keys:
-                data["displayUnit"] = data["offsetUnit"]
-            
+            if "emptyKegWeighUnit" not in keys:
+                data["emptyKegWeightUnit"] = "g"
+        
+        if "startVolume" not in keys:
+            data["startVol"] = 0
+        
+        if "startVolumeUnit" not in keys:
+            data["startVolumeUnit"] = "ml"
+        
+        if "displayUnit" not in keys:
+            data["displayUnit"] = self.config.get(f"general.preferred_vol_units.{dev_type}")
+        
+        with session_scope(self.config) as db_session:
             dev = DevicesDB.create(db_session, **obj_keys_camel_to_snake(data))
-            return self.transform_response(dev)
+            return await self.transform_response(dev)
 
 @api.route('/find')
 @api.response(404, 'Device not found')
-class FindDevice(BaseResource):
+class FindDevice(DeviceResource):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
     
     @api.doc('find_device')
     @api.param('chip_id', 'The device chip_type id', _in="query")
     @api.param('chip_type', 'The device chip_type.  Currently only supports "Particle"', _in="query")
-    @api.marshal_list_with(device_mod)
-    def get(self):
+    #@api.marshal_list_with(device_mod)
+    async def get(self):
         parser = reqparse.RequestParser()
         parser.add_argument('chip_id', location='args', required=True)
         parser.add_argument('chip_type', location='args')
@@ -183,53 +190,56 @@ class FindDevice(BaseResource):
             devs = DevicesDB.get_by_chip_id(db_session, chip_type, chip_id)
             if devs:
                 self.logger.debug(f"found device(s) matching chip type: {chip_type} with chip id: {chip_id}, results: {devs}")
-                return self.transform_response(devs)
+                return await self.transform_response(devs)
         api.abort(404)
 
 @api.route('/<id>')
 @api.param('id', 'The device id')
 @api.response(404, 'Device not found')
-class Device(BaseResource):
+class Device(DeviceResource):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
     
     @api.doc('get_device')
-    @api.marshal_with(device_mod)
-    def get(self, id):
+    #@api.marshal_with(device_mod)
+    async def get(self, id):
         with session_scope(self.config) as db_session:
             dev = DevicesDB.get_with_measurement_stats(db_session, id)
             if dev:
                 self.logger.debug(f"Device found: {dev}")
-                return self.transform_response(dev)
+                return await self.transform_response(dev)
         api.abort(404)
 
     @api.doc('patch_device')
     @api.expect(new_device_mod, validate=False)
-    @api.marshal_list_with(device_mod, code=201)
-    def patch(self, id):
+    #@api.marshal_with(device_mod)
+    async def patch(self, id):
         with session_scope(self.config) as db_session:
             dev = DevicesDB.get_by_pkey(db_session, id)
             if not dev:
                 api.abort(404)
-            data = api.payload
-            keys = data.keys()
-            if "chipType" in keys:
-                ct = data.get("chipType")
-                if ct != "Particle":
-                    api.abort(400, f"Invalid chip_type '{ct}'.  Currently only Particle devices are supported.")
-            if "deviceType" in keys:
-                dt = data.get("deviceType", "unknown").lower()
-                if dt not in DEVICE_TYPES:
-                    api.abort(400, f"Invalid device type '{dt}'.  Supported types are: [weight, flow]")
+                
+        data = api.payload
+        keys = data.keys()
+        if "chipType" in keys:
+            ct = data.get("chipType")
+            if ct != "Particle":
+                api.abort(400, f"Invalid chip_type '{ct}'.  Currently only Particle devices are supported.")
+        if "deviceType" in keys:
+            dt = data.get("deviceType", "unknown").lower()
+            if dt not in DEVICE_TYPES:
+                api.abort(400, f"Invalid device type '{dt}'.  Supported types are: [weight, flow]")
 
-            self.logger.debug(f"PATCH data for {id}: JSON data {data}")
-            u_data = obj_keys_camel_to_snake(data)
-            self.logger.debug(f"Updating device {id} with data {u_data}")
+        self.logger.debug(f"PATCH data for {id}: JSON data {data}")
+        u_data = obj_keys_camel_to_snake(data)
+        self.logger.debug(f"Updating device {id} with data {u_data}")
+        
+        with session_scope(self.config) as db_session:
             dev = DevicesDB.update(db_session, id, **u_data)
-            return self.transform_response(dev)
+            return await self.transform_response(dev)
         
     @api.doc('delete_device')
-    def delete(self, id):
+    async def delete(self, id):
         with session_scope(self.config) as db_session:
             dev = DevicesDB.get_by_pkey(db_session, id)
             if not dev:
@@ -242,20 +252,41 @@ class Device(BaseResource):
 @api.param("id", "The device id")
 @api.param('func_name', "the name of the function to execute")
 @api.response(404, 'Device not found')
-class DeviceRPC(BaseResource):
+class DeviceRPC(DeviceResource):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
     
     @api.doc('device_rpc_execute')
-    def post(self, id, func_name):
+    async def post(self, id, func_name):
         with session_scope(self.config) as db_session:
             dev = DevicesDB.get_by_pkey(db_session, id)
             if not dev:
                 api.abort(404)
+            chip_id = dev.chip_id
+        
             if func_name in ["ping", "start_calibration", "calibrate", "tare", "clear_memory", "send_most_recent_sample", "start_maintenance_mode", "stop_maintenance_mode"]: 
-                return devices.run(dev, func_name)
+                val, err, err_code = await devices.run(chip_id, func_name)
+                self.logger.debug(f"Executed device function (chip id: {chip_id}) complete: val = {val}, err = {err}, err_code = {err_code}")
+
+                if err: 
+                    api.abort(err_code, err)
+                if val == -99: 
+                    self.logger.info(f"Executed device function '{func_name}' successfully but the device failed to push status.  Attempting to pull latest state")
+                    st, err2, err2_code = await devices.pull_state(chip_id)
+                    self.logger.debug(f"Device state pull complete: val = {st}, err = {err2}, err_code = {err2_code}")
+                    if err2 is None:
+                        self.logger.debug(f"Updating device state ={st}")
+                        # with session_scope(self.config) as db_session:
+                        dev = DevicesDB.update(db_session, id, **{"state": st})
+                        self.logger.debug(f"Device state update complete")
+                
+                sleep(5)
+                # with session_scope(self.config) as db_session:
+                self.logger.debug(f"Retrieving device data again to return")
+                dev = DevicesDB.get_with_measurement_stats(db_session, id)
+                return await self.transform_response(dev) 
             else:
-                api.abort(400, "Unsupported RPC function")
+                api.abort(405, "Unsupported RPC function")
 
 
 @api.route("/<id>/manufacturer_info/<key>")
@@ -263,25 +294,27 @@ class DeviceRPC(BaseResource):
 @api.param("id", "The device id")
 @api.param('key', "the name of optional data key.  If not provided, all available manufacturer data will be returned")
 @api.response(404, 'Device not found')
-class DeviceManufacturerInfo(BaseResource):
+class DeviceManufacturerInfo(AsyncBaseResource):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
     
     @api.doc('device_manufacturer_info')
-    def get(self, id, key=None):
+    async def get(self, id, key=None):
         with session_scope(self.config) as db_session:
             dev = DevicesDB.get_by_pkey(db_session, id)
             if not dev:
                 api.abort(404)
-            if not key:
-                return devices.get(dev, "get_details")
-            elif key in ["get_details", "get_description", "supports_status_check", "online"]:
-                return devices.get(dev, key)
-            else:
-                details = devices.get(dev, "get_details")
-                if not details:
-                    return None
-                keys = details.keys()
-                if key not in keys:
-                    api.abort(400, "Unsupported key function")
-                return details.get(key)
+            chip_id = dev.chip_id
+
+        if not key:
+            return await devices.get(chip_id, "get_details")
+        elif key in ["get_details", "get_description", "supports_status_check", "online"]:
+            return await devices.get(chip_id, key)
+        else:
+            details = await devices.get(chip_id, "get_details")
+            if not details:
+                return None
+            keys = details.keys()
+            if key not in keys:
+                api.abort(400, "Unsupported key function")
+            return details.get(key)

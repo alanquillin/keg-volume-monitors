@@ -86,7 +86,7 @@ device_data_t DataService::registerDevice(){
     int cnt = 0;
     while(cnt < _maxRetries){
         http_response_t response = _post(path, jData);
-        if (response.status < 300){
+        if (response.status >= 100 && response.status < 300){
             return _parseDeviceData(_respToJson(response));
         }
         cnt = cnt + 1;
@@ -108,7 +108,30 @@ bool DataService::sendMeasurement(String id, float measurement, long timestamp){
     int cnt = 0;
     while(cnt < _maxRetries){
         http_response_t response = _post(path, jData);
-        if (response.status < 300) {
+        if (response.status >= 100 && response.status < 300) {
+            return true;
+        }
+        cnt = cnt + 1;
+    }
+    return false;
+}
+
+bool DataService::sendStatus(device_status_t status){
+    if (!_enabled) {
+        return true;
+    }
+
+    String path = "/api/v1/devices/" + status.id + "/status";
+
+    JsonDocument jData;
+    jData["latestMeasurement"] =  status.latestMeasurement;
+    jData["latestMeasurementTS"] =  status.latestMeasurementTS;
+    jData["state"] =  status.state;
+
+    int cnt = 0;
+    while(cnt < _maxRetries){
+        http_response_t response = _post(path, jData);
+        if (response.status >= 100 && response.status < 300) {
             return true;
         }
         cnt = cnt + 1;
