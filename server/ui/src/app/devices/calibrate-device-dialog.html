@@ -1,0 +1,33 @@
+@if(device.getState() == DeviceState.Calibrating){
+    <h2 mat-dialog-title>Calibrating...</h2>
+} @else if(device.getState() == DeviceState.CalibrationModeEnabled) {
+    <h2 mat-dialog-title>Calibrate Device</h2>
+} @else {
+    <h2 mat-dialog-title>Start Calibration Process</h2>
+}
+<mat-dialog-content>
+    <h3>Device: {{device.name}} ({{device.id}})</h3>
+@if(processing) {
+    <mat-spinner></mat-spinner>
+} @else {
+@if(device.getState() == DeviceState.CalibrationModeEnabled){
+  <p>Put known calibration weight on the scale and enter the known weight (in grams) below then click the calibration button.</p>
+  <mat-form-field>
+    <mat-label>Known calibration weight (g)</mat-label>
+    <input type="number" matInput [(ngModel)]="calibrationValue" />
+  </mat-form-field>
+} @else {
+    <p>Before starting calibration, make sure there is nothing on the scale.</p>
+    <p>Click the Enable Calibration button to start the process.</p>
+}
+}
+</mat-dialog-content>
+<mat-dialog-actions>
+@if(device.getState() == DeviceState.CalibrationModeEnabled) {
+  <button mat-flat-button (click)="cancel()" [disabled]="processing">Cancel</button>
+  <button mat-flat-button (click)="calibrate()" cdkFocusInitial [disabled]="processing || disableCalibrationBtn()">Calibrate</button>
+} @else {
+  <button mat-flat-button (click)="close()" [disabled]="processing">Cancel</button>
+  <button mat-flat-button (click)="enableCalibration()" cdkFocusInitial [disabled]="processing">Enable Calibration</button>
+}
+</mat-dialog-actions>

@@ -8,7 +8,7 @@ from lib.util import calculate_volume_ml_from_weight, obj_keys_camel_to_snake
 from resources import AsyncBaseResource, DEVICE_STATE_MAP
 
 import asyncio
-from flask_restx import Namespace, Resource, fields, reqparse, inputs
+from flask_restx import Namespace, fields, reqparse
 
 api = Namespace('devices', description='Manage devices')
 
@@ -264,29 +264,39 @@ class DeviceRPC(DeviceResource):
                 api.abort(404)
             chip_id = dev.chip_id
         
-            if func_name in ["ping", "start_calibration", "calibrate", "tare", "clear_memory", "send_most_recent_sample", "start_maintenance_mode", "stop_maintenance_mode"]: 
-                val, err, err_code = await devices.run(chip_id, func_name)
-                self.logger.debug(f"Executed device function (chip id: {chip_id}) complete: val = {val}, err = {err}, err_code = {err_code}")
+        if func_name in ["ping", "start_calibration", "cancel_calibration", "calibrate", "tare", "clear_memory", "send_most_recent_sample", "start_maintenance_mode", "stop_maintenance_mode"]:
+            data = {} 
+            if func_name == "calibrate":
+                parser = api.parser()
+                parser.add_argument('calibrationWeight', type=float, location='json')
+                args = parser.parse_args()
+                cal_weight = args.get("calibrationWeight")
+                if not cal_weight:
+                    self.logger.warning("Calibration RPC was called but could not find the calibration value in the request")
+                    self.logger.debug(f"Args: {args}")
+                    api.abort(400, "calibrationWeight value is required but was not provided") 
+                data["cal_weight"] = cal_weight
+            val, err, err_code = await devices.run(chip_id, func_name, **data)
+            self.logger.debug(f"Executed device function (chip id: {chip_id}) complete: val = {val}, err = {err}, err_code = {err_code}")
 
-                if err: 
-                    api.abort(err_code, err)
-                if val == -99: 
-                    self.logger.info(f"Executed device function '{func_name}' successfully but the device failed to push status.  Attempting to pull latest state")
-                    st, err2, err2_code = await devices.pull_state(chip_id)
-                    self.logger.debug(f"Device state pull complete: val = {st}, err = {err2}, err_code = {err2_code}")
-                    if err2 is None:
-                        self.logger.debug(f"Updating device state ={st}")
-                        # with session_scope(self.config) as db_session:
+            if err: 
+                api.abort(err_code, err)
+            if val == -99: 
+                self.logger.info(f"Executed device function '{func_name}' successfully but the device failed to push status.  Attempting to pull latest state")
+                st, err2, err2_code = await devices.pull_state(chip_id)
+                self.logger.debug(f"Device state pull complete: val = {st}, err = {err2}, err_code = {err2_code}")
+                if err2 is None:
+                    self.logger.debug(f"Updating device state ={st}")
+                    with session_scope(self.config) as db_session:
                         dev = DevicesDB.update(db_session, id, **{"state": st})
                         self.logger.debug(f"Device state update complete")
-                
-                sleep(5)
-                # with session_scope(self.config) as db_session:
+            
+            with session_scope(self.config) as db_session:
                 self.logger.debug(f"Retrieving device data again to return")
                 dev = DevicesDB.get_with_measurement_stats(db_session, id)
                 return await self.transform_response(dev) 
-            else:
-                api.abort(405, "Unsupported RPC function")
+        else:
+            api.abort(405, "Unsupported RPC function")
 
 
 @api.route("/<id>/manufacturer_info/<key>")

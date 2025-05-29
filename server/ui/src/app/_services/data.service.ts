@@ -107,8 +107,12 @@ export class DataService {
     return this.rpc(id, "start_calibration", {});
   }
 
-  calibrate(id: string, knownWeight:number): Observable<Device> {
-    return this.rpc(id, "calibrate", {knownWeight: knownWeight});
+  cancelCalibrationMode(id: string): Observable<Device> {
+    return this.rpc(id, "cancel_calibration", {});
+  }
+
+  calibrate(id: string, calibrationWeight:number): Observable<Device> {
+    return this.rpc(id, "calibrate", {calibrationWeight: calibrationWeight});
   }
 
   rpc(id: string, func:string, data:any): Observable<Device> {

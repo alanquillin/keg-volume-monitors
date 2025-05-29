@@ -199,6 +199,8 @@ int cleanMemAndRestartCld(String _ = "") {
  * @return int - A value of 1 is return to represent successful calibration, negative numbers return indicate an error
  *      @error codes:
  *          -1 - Unable to parse input value to float
+ *          -2 - Invalid input value.  Cannot be lower that the default empty keg weight
+ *          -3 - Calibration failed
  *          -99 - Function succeeded but was unable to send the status update to the service
  * 
  * 
@@ -245,19 +247,26 @@ int calibrateCld(String calWeight_s) {
     float max = calWeight + diff;
     float min = calWeight - diff;
     float sample = scale.get_units(sampleCnt);
-
+    
+    boolean validated=false;
     if(sample < min || sample > max) {
+        validated = false;
         Log.error("Calibration failed, the new sample %.2f was out side of the allowed range: min: %.2f, max: %.2f", sample, min, max);
         scale.set_scale();  // reset calibration scale
-        return -3;
+    } else {
+        Log.trace("Calibration validation succeeded!");
+        validated = true;
+        storeCalibrationScale(cal);
     }
-    
-    storeCalibrationScale(cal);
+
     scale.power_down();
     CALIBRATION_MODE_ENABLED = false;
     CALIBRATING = false;
-    if(!sendStatus()){
+    if(!sendStatus() && validated){
         return -99;
+    }
+    if (!validated) {
+        return -3;
     }
     return 1;
 }
@@ -339,15 +348,12 @@ int sendStatusCld(String _ = "") {
  *          -99 - Function succeeded but was unable to send the status update to the service
  */
 int startMaintenanceModeCld(String _ = "") {
-    if (CALIBRATING || CALIBRATION_MODE_ENABLED) {
-        Log.error("Cannot enter maintenance mode while calibration is in process.");
-        return -1;
-    }
-
     Log.info("Entering maintenance mode.");
     MAINTENANCE_MODE = true;
-    if(!sendStatus()){
-        return -99;
+    if (!CALIBRATING) {
+        if(!sendStatus()){
+            return -99;
+        }
     }
     return 1;
 }
@@ -360,15 +366,12 @@ int startMaintenanceModeCld(String _ = "") {
  *          -99 - Function succeeded but was unable to send the status update to the service
  */
 int stopMaintenanceModeCld(String _ = "") {
-    if (CALIBRATING || CALIBRATION_MODE_ENABLED) {
-        Log.error("Cannot exit maintenance mode while calibration is in process.");
-        return -1;
-    }
-
     Log.info("Exiting maintenance mode.");
     MAINTENANCE_MODE = false;
-    if(!sendStatus()){
-        return -99;
+    if (!CALIBRATING) {
+        if(!sendStatus()){
+            return -99;
+        }
     }
     return 1;
 }

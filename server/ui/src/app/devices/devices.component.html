@@ -99,14 +99,13 @@
             </button>
             }
             @if (showStopCalibrationButton(d)) {
-            <button mat-flat-button>
+            <button mat-flat-button (click)="cancelCalibration(d)">
                 <span>Cancel Calibration</span>
             </button>
-            } @else {
-            <button mat-flat-button [disabled]="disableCalibrateButton(d)">
+            }
+            <button mat-flat-button [disabled]="disableCalibrateButton(d)" (click)="calibrate(d)">
                 <span>Calibrate Device</span>
             </button>
-            }
             }
             
         </div>
@@ -194,16 +193,15 @@
                     </button>
                     }
                     @if (showStopCalibrationButton(d)) {
-                    <button mat-menu-item>
+                    <button mat-menu-item (click)="cancelCalibration(d)">
                       <mat-icon>cancel</mat-icon>
                       <span>Cancel Calibration</span>
                     </button>
-                    } @else {
-                    <button mat-menu-item [disabled]="disableCalibrateButton(d)">
+                    }
+                    <button mat-menu-item [disabled]="disableCalibrateButton(d)" (click)="calibrate(d)">
                       <mat-icon>center_focus_strong</mat-icon>
                       <span>Calibrate Device</span>
                     </button>
-                    }
                 </mat-menu>
                 }
             </td>

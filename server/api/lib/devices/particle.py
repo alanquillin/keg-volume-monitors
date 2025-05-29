@@ -7,10 +7,12 @@ CONFIG = Config()
 
 LOG = logging.getLogger(__name__)
 
+DEFAULT_ERROR_STATUS_CODE = 424
+
 BASE_URL = CONFIG.get("particle.base_url", "https://api.particle.io")
 
 PARTICLE_CLOUD_FN = {
-    "initCalibration": {
+    "startCalibration": {
         "errors": {}
     },
     "cancelCalibration": {
@@ -22,6 +24,8 @@ PARTICLE_CLOUD_FN = {
     "calibrate": {
         "errors": {
             -1: {"msg": "Invalid calibration value.  Requires a float", "code": 400},
+            -2: {"msg": "Invalid calibration weight, cannot be lower than the empty keg weight", "code": 400},
+            -3: {"msg": "Calibration failed. The new samples did not match the provided calibration weight."}
         }
     }, 
     "tare": {
@@ -127,7 +131,7 @@ async def supports_status_check(*args, **kwargs):
 
 @_particle_func
 async def start_calibration(device_chip_id, *args, **kwargs):
-    return await _call_func(device_chip_id, "initCalibration")
+    return await _call_func(device_chip_id, "startCalibration")
 
 @_particle_func
 async def cancel_calibration(device_chip_id, *args, **kwargs):
@@ -170,7 +174,7 @@ async def _call_func(device_chip_id, func, data=None):
         LOG.debug("RESPONSE (%s): <%s> %s", func, status_code, data)
 
         if status_code != 200:
-            return False, None, None
+            return None, data.get("error", "UNKNOWN ERROR"), DEFAULT_ERROR_STATUS_CODE
         
         ret_value = data.get("return_value")
 
@@ -179,7 +183,7 @@ async def _call_func(device_chip_id, func, data=None):
         if ret_value != -99 and ret_value < 0:
             err = PARTICLE_CLOUD_FN.get(func, {}).get("errors", {}).get(ret_value, {})
             err_msg = err.get("msg", f"Unknown error code: {ret_value}")
-            err_code = err.get("code", 424)
+            err_code = err.get("code", DEFAULT_ERROR_STATUS_CODE)
 
         return ret_value, err_msg, err_code
 
