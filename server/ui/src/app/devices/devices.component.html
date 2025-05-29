@@ -1,0 +1,216 @@
+@if(editWeightScale){
+<h1>Edit Device: ({{selectedDevice.name}})</h1>
+} @else {
+<h1>Devices</h1>
+}
+
+@if(loading) {
+<div>
+    <mat-spinner></mat-spinner> Loading... calm down.
+</div>
+}
+@if(!loading){
+@if(editWeightScale){
+<form [formGroup]="editWeightScaleForm" (ngSubmit)="onEditWeightScaleSubmit()">
+    <div>
+        <mat-form-field appearance="outline">
+            <mat-label for="name">Name:</mat-label>
+            <input matInput type="text" id="name" formControlName="name">
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+            <mat-label for="emptyKegVolume">Empty Keg Volume:</mat-label>
+            <input matInput type="number"  id="emptyKegWeight" formControlName="emptyKegWeight" required>
+            <mat-select name="emptyKegWeightUnit" id="emptyKegWeightUnit" formControlName="emptyKegWeightUnit" class="form-control">
+                @for(unit of allowedMassUnits; track unit) {
+                <mat-option [value]="unit">{{ unit }}</mat-option>
+                }
+            </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+            <mat-label for="startVolume">Start Volume:</mat-label>
+            <input matInput type="number"  id="startVolume" formControlName="startVolume" required>
+            <mat-select name="startVolumeUnit" id="startVolumeUnit" formControlName="startVolumeUnit" class="form-control">
+                @for(unit of allowedLiquidUnits; track unit) {
+                <mat-option [value]="unit">{{ unit }}</mat-option>
+                }
+            </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+            <mat-label for="displayVolumeUnit">Display Volume Unit:</mat-label>
+            <mat-select name="displayVolumeUnit" id="displayVolumeUnit" formControlName="displayVolumeUnit" class="form-control">
+                @for(unit of allowedLiquidUnits; track unit) {
+                <mat-option [value]="unit">{{ unit }}</mat-option>
+                }
+            </mat-select>
+        </mat-form-field>
+    </div>
+    <div>
+        @if (updating) {
+            <mat-spinner></mat-spinner>
+        }
+        <button mat-flat-button type="submit" [disabled]="!editWeightScaleForm.valid || !editWeightScaleHasChanges() || updating">Save</button>
+        <button mat-stroked-button [disabled]="updating" (click)="cancelEditWeightScale()">Cancel</button>
+    </div>
+</form>
+}
+@else {
+
+<div >
+@if (isMobile) {
+    @for(d of devices; track d.id) {
+        <div>
+            <h3>{{d.name}} ({{d.deviceType}})</h3>
+            <strong>Online:</strong> @if (d.online) { <mat-icon aria-hidden="false" aria-label="online" class="online" fontIcon="cloud"></mat-icon><br/>
+            <strong>State:</strong>
+            @if (d.getState() == DeviceState.ReadyNoService) {
+                <span class="ready-no-service">Ready: No Data Service</span>
+            }
+            @else if (d.getState() == DeviceState.MaintenanceModeEnabled) {
+                <span class="maintenance-mode">Maintenance Mode</span>
+            }
+            @else if (d.getState() == DeviceState.CalibrationModeEnabled) {
+                <span class="calibrating">Calibration Started</span>
+            }
+            @else if (d.getState() == DeviceState.Calibrating) {
+                <span class="calibrating">Calibrating</span>
+            }
+            @else if (d.getState() == DeviceState.Unknown) {
+                <span class="error">Unknown</span>
+            }
+            @else {
+                Ready
+            }
+            } @else { <mat-icon aria-hidden="false" aria-label="offline" class="offline" fontIcon="cloud_off"></mat-icon> }<br/>
+            <strong>Id:</strong> {{d.id}}<br/>
+            <strong># of measurements:</strong> {{d.measurementCount}}<br/>
+            <strong>Last Measurement:</strong> {{d.latestMeasurement}}{{d.latestMeasurementUnit}} (<strong>taken on:</strong> {{d.latestMeasurementTakenOn}})<br/>
+            <strong>Volume remaining:</strong> {{d.totalVolumeRemaining}} {{d.displayVolumeUnit}} (<strong>{{d.percentRemaining}}%</strong>)<br/>
+            @if (d.processing) {
+                <mat-spinner></mat-spinner>
+            } @else {
+            <button mat-flat-button (click)="editDevice(d)">Edit</button>
+            @if (showDisableMaintenanceButton(d)) {
+            <button mat-flat-button (click)="disableMaintenanceMode(d)">
+                <span>Disable Maintenance Mode</span>
+            </button>
+            } @else {
+            <button mat-flat-button [disabled]="disableEnableMaintenanceButton(d)" (click)="enableMaintenanceMode(d)">
+                <span>Enable Maintenance Mode</span>
+            </button>
+            }
+            @if (showStopCalibrationButton(d)) {
+            <button mat-flat-button (click)="cancelCalibration(d)">
+                <span>Cancel Calibration</span>
+            </button>
+            }
+            <button mat-flat-button [disabled]="disableCalibrateButton(d)" (click)="calibrate(d)">
+                <span>Calibrate Device</span>
+            </button>
+            }
+            
+        </div>
+        } @empty {
+            No devices found.
+        }
+} @else {
+    <table mat-table [dataSource]="devices" class="mat-elevation-z8">
+
+        <!--- Note that these columns can be defined in any order.
+              The actual rendered columns are set as a property on the row definition" -->
+      
+        <!-- Position Column -->
+        <ng-container matColumnDef="status">
+          <th mat-header-cell *matHeaderCellDef> Status </th>
+          <td mat-cell *matCellDef="let d">
+            @if (d.online) {
+                <mat-icon aria-hidden="false" aria-label="online" class="online" fontIcon="cloud"></mat-icon>
+            } @else {
+                <mat-icon aria-hidden="false" aria-label="offline" fontIcon="cloud_off" class="offline"></mat-icon>
+            }
+            @if (d.getState() == DeviceState.ReadyNoService) {
+                <span class="ready-no-service">(No Data Service)</span>
+            }
+            @if (d.getState() == DeviceState.MaintenanceModeEnabled) {
+                <span class="maintenance-mode">(Maintenance Mode)</span>
+            }
+            @if (d.getState() == DeviceState.CalibrationModeEnabled) {
+                <span class="calibrating">(Calibration Started)</span>
+            }
+            @if (d.getState() == DeviceState.Calibrating) {
+                <span class="calibrating">(Calibrating...)</span>
+            }
+            @if (d.getState() == DeviceState.Unknown) {
+                <span class="error"><mat-icon>error</mat-icon> (State Unknown)</span>
+            }
+          </td>
+        </ng-container>
+      
+        <!-- Name Column -->
+        <ng-container matColumnDef="type">
+          <th mat-header-cell *matHeaderCellDef> Type </th>
+          <td mat-cell *matCellDef="let d"> {{d.deviceType}} </td>
+        </ng-container>
+      
+        <!-- Weight Column -->
+        <ng-container matColumnDef="name">
+          <th mat-header-cell *matHeaderCellDef> Name </th>
+          <td mat-cell *matCellDef="let d"> {{d.name}} </td>
+        </ng-container>
+      
+        <!-- Symbol Column -->
+        <ng-container matColumnDef="remaining">
+          <th mat-header-cell *matHeaderCellDef> Volume Remaining </th>
+          <td mat-cell *matCellDef="let d"> {{d.totalVolumeRemaining}} {{d.displayVolumeUnit}} (<strong>{{d.percentRemaining}}%</strong>) </td>
+        </ng-container>
+
+        <ng-container matColumnDef="measurements">
+            <th mat-header-cell *matHeaderCellDef> # Measurements </th>
+            <td mat-cell *matCellDef="let d"> {{d.measurementCount}} </td>
+          </ng-container>
+
+        <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef> </th>
+            <td mat-cell *matCellDef="let d">
+                @if (d.processing) {
+                <mat-spinner></mat-spinner>
+                } @else {
+                <button mat-mini-fab aria-label="Edit device" (click)="editDevice(d)">
+                    <mat-icon>edit</mat-icon>
+                </button> 
+                <button mat-mini-fab [matMenuTriggerFor]="menu" aria-label="device actions">
+                    <mat-icon>more_vert</mat-icon>
+                  </button>
+                <mat-menu #menu="matMenu">
+                    @if (showDisableMaintenanceButton(d)) {
+                    <button mat-menu-item (click)="disableMaintenanceMode(d)" (click)="disableMaintenanceMode(d)">
+                      <mat-icon>build</mat-icon>
+                      <span>Disable Maintenance Mode</span>
+                    </button>
+                    } @else {
+                    <button mat-menu-item [disabled]="disableEnableMaintenanceButton(d)" (click)="enableMaintenanceMode(d)">
+                      <mat-icon>build</mat-icon>
+                      <span>Enable Maintenance Mode</span>
+                    </button>
+                    }
+                    @if (showStopCalibrationButton(d)) {
+                    <button mat-menu-item (click)="cancelCalibration(d)">
+                      <mat-icon>cancel</mat-icon>
+                      <span>Cancel Calibration</span>
+                    </button>
+                    }
+                    <button mat-menu-item [disabled]="disableCalibrateButton(d)" (click)="calibrate(d)">
+                      <mat-icon>center_focus_strong</mat-icon>
+                      <span>Calibrate Device</span>
+                    </button>
+                </mat-menu>
+                }
+            </td>
+        </ng-container>
+      
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+      </table>
+    }
+</div>
+}
+}

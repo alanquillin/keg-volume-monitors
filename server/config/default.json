@@ -1,0 +1,22 @@
+{
+  "__conversion_schema": {
+    "api.port": "int",
+    "db.port": "int",
+    "particle.device_services.enabled": "bool"
+  },
+  "api": {
+    "host": "localhost",
+    "port": 5000,
+    "schema": "http"
+  },
+  "app_id": "keg-volume-monitor",
+  "particle": {
+    "base_url": "https://api.particle.io"
+  },
+  "general": {
+    "preferred_vol_units": {
+      "flow": "ml",
+      "weight": "gal"
+    }
+  }
+}
