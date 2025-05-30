@@ -1,16 +1,16 @@
 version: '3.8'
 services:
-  nginx: 
+  kvm_nginx: 
     image : nginx:latest 
     ports : 
-        - 8000:8000
+        - 8001:8001
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/nginx.conf
     networks:
       - keg-volume-monitor-net
     depends_on:
-      - "web"
-  web:
+      - kvm_web
+  kvm_web:
     image: keg-volume-monitor:dev
     expose:
       - 5000
@@ -20,9 +20,9 @@ services:
       - ./docker-local.env
       - ".env"
     depends_on:
-      postgres:
+      kvm_postgres:
         condition: service_healthy
-      db-data-seed:
+      kvm_db-data-seed:
         condition: service_completed_successfully
     networks:
       - keg-volume-monitor-net
@@ -30,29 +30,30 @@ services:
       - ./my-config.json:/keg-volume-monitor/config/config.json
     stdin_open: true
     tty: true
-  postgres:
+  kvm_postgres:
     image: postgres:17-alpine
     expose:
-      - 5432
+      - 5433
     ports:
-      - 5432:5432
+      - 5433:5433
     networks:
       - keg-volume-monitor-net
     volumes:
-      - ./my-config.json:/keg-volume-monitor/config/config.json
+      - ./data:/var/lib/postgresql/data
     env_file:
       - ./docker-local.env
       - ".env"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB -p $$POSTGRES_PORT"]
       interval: 30s
       timeout: 60s
       retries: 5
       start_period: 10s
-  db-data-seed:
+    command: -p 5433
+  kvm_db-data-seed:
     image: keg-volume-monitor-db-seed:dev
     depends_on:
-      postgres:
+      kvm_postgres:
         condition: service_healthy
     env_file:
       - ./docker-local.env

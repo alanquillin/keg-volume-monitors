@@ -144,5 +144,8 @@ clean-seed-image:
 
 clean-images: clean-image clean-seed-image
 
-clean-all: clean clean-images
+clean-db:
+	rm -rf ./deploy/data
+
+clean-all: clean clean-images clean-db
 

@@ -6,14 +6,13 @@ import uuid
 from lib import logging
 from lib.config import Config
 
-from resources.devices import api as DevicesNS
-from resources.device_measurements import api as DeviceMeasurementsNS
-from resources.device_status import api as DeviceStatusNS
-
-
 CONFIG = Config()
 CONFIG.setup(config_files=["default.json"])
 logging.init(fmt=logging.DEFAULT_LOG_FMT)
+
+from resources.devices import api as DevicesNS
+from resources.device_measurements import api as DeviceMeasurementsNS
+from resources.device_status import api as DeviceStatusNS
 
 from flask import Flask, send_from_directory
 from flask.logging import create_logger
