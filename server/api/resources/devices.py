@@ -15,7 +15,7 @@ api = Namespace('devices', description='Manage devices')
 DEVICE_TYPES = ["weight", "flow"]
 
 IN_FIELDS = {
-    "name": fields.String(required=True, description="The friendly name of the device"),
+    "name": fields.String( description="The friendly name of the device"),
     "chipId": fields.String(required=True, description="The chip manufacturer's Id for the device"),
     "deviceType": fields.String(required=True, description="The type of device: Options: [weight, flow]"),
     "chipModel": fields.String(required=False, description="The model of the devices chip"),
@@ -137,28 +137,39 @@ class Devices(DeviceResource):
             if existing_dev:
                 api.abort(400, "Device already exists")
 
-        dev_type = data.get("deviceType", "unknown").lower()
-        if dev_type not in DEVICE_TYPES:
-            api.abort(400, f"Invalid device type '{dev_type}'.  Supported types are: [weight, flow]")
-        
-        keys = data.keys()
-        if dev_type == "weight":
-            if "emptyKegWeight" not in keys:
-                data["emptyKegWeight"] = 0
+            dev_type = data.get("deviceType", "unknown").lower()
+            if dev_type not in DEVICE_TYPES:
+                api.abort(400, f"Invalid device type '{dev_type}'.  Supported types are: [weight, flow]")
             
-            if "emptyKegWeighUnit" not in keys:
-                data["emptyKegWeightUnit"] = "g"
-        
-        if "startVolume" not in keys:
-            data["startVol"] = 0
-        
-        if "startVolumeUnit" not in keys:
-            data["startVolumeUnit"] = "ml"
-        
-        if "displayUnit" not in keys:
-            data["displayUnit"] = self.config.get(f"general.preferred_vol_units.{dev_type}")
-        
-        with session_scope(self.config) as db_session:
+            keys = data.keys()
+            if dev_type == "weight":
+                if "emptyKegWeight" not in keys:
+                    data["emptyKegWeight"] = 0
+                
+                if "emptyKegWeighUnit" not in keys:
+                    data["emptyKegWeightUnit"] = "g"
+            
+            if "startVolume" not in keys:
+                data["startVolume"] = 0
+            
+            if "startVolumeUnit" not in keys:
+                data["startVolumeUnit"] = "ml"
+            
+            if "displayUnit" not in keys:
+                data["displayVolumeUnit"] = self.config.get(f"general.preferred_vol_units.{dev_type}")
+            
+            if "name" not in keys:
+                self.logger.debug(f"Name was not provided for new device, attempting to pull device name from the cloud.  chip type: {data['chipType']}, chip id: {data['chipId']}, chip model: {data.get('chipModel', 'UNKNOWN')}")
+                name = "UNKNOWN"
+                try:
+                    details = await devices.get_details(data["chipId"])
+                    if details:
+                        name = details.get("name", name)
+                except:
+                    self.logger.error(f"unable to retrieve name for device.  chip type: {data['chipType']}, chip id: {data['chipId']}, chip model: {data.get('chipModel', 'UNKNOWN')}")
+                data["name"] = name
+            
+            self.logger.debug(f"Creating device record with data: {data}")
             dev = DevicesDB.create(db_session, **obj_keys_camel_to_snake(data))
             return await self.transform_response(dev)
 
@@ -219,22 +230,21 @@ class Device(DeviceResource):
             if not dev:
                 api.abort(404)
                 
-        data = api.payload
-        keys = data.keys()
-        if "chipType" in keys:
-            ct = data.get("chipType")
-            if ct != "Particle":
-                api.abort(400, f"Invalid chip_type '{ct}'.  Currently only Particle devices are supported.")
-        if "deviceType" in keys:
-            dt = data.get("deviceType", "unknown").lower()
-            if dt not in DEVICE_TYPES:
-                api.abort(400, f"Invalid device type '{dt}'.  Supported types are: [weight, flow]")
+            data = api.payload
+            keys = data.keys()
+            if "chipType" in keys:
+                ct = data.get("chipType")
+                if ct != "Particle":
+                    api.abort(400, f"Invalid chip_type '{ct}'.  Currently only Particle devices are supported.")
+            if "deviceType" in keys:
+                dt = data.get("deviceType", "unknown").lower()
+                if dt not in DEVICE_TYPES:
+                    api.abort(400, f"Invalid device type '{dt}'.  Supported types are: [weight, flow]")
 
-        self.logger.debug(f"PATCH data for {id}: JSON data {data}")
-        u_data = obj_keys_camel_to_snake(data)
-        self.logger.debug(f"Updating device {id} with data {u_data}")
+            self.logger.debug(f"PATCH data for {id}: JSON data {data}")
+            u_data = obj_keys_camel_to_snake(data)
+            self.logger.debug(f"Updating device {id} with data {u_data}")
         
-        with session_scope(self.config) as db_session:
             dev = DevicesDB.update(db_session, id, **u_data)
             return await self.transform_response(dev)
         

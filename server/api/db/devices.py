@@ -72,7 +72,7 @@ class Devices(Base, DictifiableMixin, QueryMethodsMixin):
 
     @classmethod
     def _build_query_with_measurement_stats(cls, session, **kwargs):
-        return session.query(cls, func.count(DeviceMeasurements.id).label("measurement_count")).join(DeviceMeasurements).group_by(Devices.id)
+        return session.query(cls, func.count(DeviceMeasurements.id).label("measurement_count")).join(DeviceMeasurements, isouter=True).group_by(Devices.id)
 
     @classmethod
     def _parse_result_with_measurement_stats(cls, session, res, **kwargs):
@@ -84,9 +84,11 @@ class Devices(Base, DictifiableMixin, QueryMethodsMixin):
             dev.measurement_count = res[1]
 
         latest_measurement = DeviceMeasurements.get_latest_measurement(session, dev.id)
-        dev.latest_measurement = latest_measurement.measurement
-        dev.latest_measurement_unit = latest_measurement.unit
-        dev.latest_measurement_taken_on = latest_measurement.taken_on
+        if latest_measurement:
+            dev.latest_measurement = None
+            dev.latest_measurement_unit = latest_measurement.unit
+            dev.latest_measurement_taken_on = latest_measurement.taken_on
+    
 
         return dev
     
