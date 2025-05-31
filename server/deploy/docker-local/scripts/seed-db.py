@@ -31,19 +31,19 @@ DEVICES = [
         "start_volume_unit": "ml",
         "display_volume_unit": "ml"
     },
-    # {
-    #     "id": DEVICE_ID_2,
-    #     "name": "Photon2 - 1",
-    #     "chip_type": "particle",
-    #     "chip_model": "Photon2",
-    #     "chip_id": "0a10aced202194944a054e68",
-    #     "device_type": "weight",
-    #     "empty_keg_weight": 4400,
-    #     "empty_keg_weight_unit": "g",
-    #     "start_volume": 18927.059, # 5 gallons
-    #     "start_volume_unit": "ml",
-    #     "display_volume_unit": "ml"
-    # }
+    {
+        "id": DEVICE_ID_2,
+        "name": "Photon2 - 1",
+        "chip_type": "particle",
+        "chip_model": "Photon2",
+        "chip_id": "0a10aced202194944a054e68",
+        "device_type": "weight",
+        "empty_keg_weight": 4400,
+        "empty_keg_weight_unit": "g",
+        "start_volume": 18927.059, # 5 gallons
+        "start_volume_unit": "ml",
+        "display_volume_unit": "ml"
+    }
 ]
 
 MEASUREMENT_ID_1 = "d4dafc76-94c2-40fd-af8a-93fdacc74dff"
@@ -116,41 +116,41 @@ MEASUREMENTS = [
         "unit": "g",
         "taken_on": datetime(2025, 4, 10, 6, 32, 00, tzinfo=timezone.utc)
     },
-    # {
-    #     "id": MEASUREMENT_ID_9,
-    #     "device_id": DEVICE_ID_2,
-    #     "measurement": 6185.664,
-    #     "unit": "g",
-    #     "taken_on": datetime(2025, 4, 3, 6, 32, 00, tzinfo=timezone.utc)
-    # },
-    # {
-    #     "id": MEASUREMENT_ID_10,
-    #     "device_id": DEVICE_ID_2,
-    #     "measurement": 5109.764,
-    #     "unit": "g",
-    #     "taken_on": datetime(2025, 4, 3, 6, 32, 00, tzinfo=timezone.utc)
-    # },
-    # {
-    #     "id": MEASUREMENT_ID_11,
-    #     "device_id": DEVICE_ID_2,
-    #     "measurement": 4432.0,
-    #     "unit": "g",
-    #     "taken_on": datetime(2025, 4, 3, 6, 32, 00, tzinfo=timezone.utc)
-    # },
-    # {
-    #     "id": MEASUREMENT_ID_12,
-    #     "device_id": DEVICE_ID_2,
-    #     "measurement": 62678.8,
-    #     "unit": "g",
-    #     "taken_on": datetime(2025, 4, 3, 6, 32, 00, tzinfo=timezone.utc)
-    # },
-    # {
-    #     "id": MEASUREMENT_ID_13,
-    #     "device_id": DEVICE_ID_2,
-    #     "measurement": 5200,
-    #     "unit": "g",
-    #     "taken_on": datetime(2025, 4, 3, 6, 32, 00, tzinfo=timezone.utc)
-    # }
+    {
+        "id": MEASUREMENT_ID_9,
+        "device_id": DEVICE_ID_2,
+        "measurement": 6185.664,
+        "unit": "g",
+        "taken_on": datetime(2025, 4, 3, 6, 32, 00, tzinfo=timezone.utc)
+    },
+    {
+        "id": MEASUREMENT_ID_10,
+        "device_id": DEVICE_ID_2,
+        "measurement": 5109.764,
+        "unit": "g",
+        "taken_on": datetime(2025, 4, 3, 6, 32, 00, tzinfo=timezone.utc)
+    },
+    {
+        "id": MEASUREMENT_ID_11,
+        "device_id": DEVICE_ID_2,
+        "measurement": 4432.0,
+        "unit": "g",
+        "taken_on": datetime(2025, 4, 3, 6, 32, 00, tzinfo=timezone.utc)
+    },
+    {
+        "id": MEASUREMENT_ID_12,
+        "device_id": DEVICE_ID_2,
+        "measurement": 62678.8,
+        "unit": "g",
+        "taken_on": datetime(2025, 4, 3, 6, 32, 00, tzinfo=timezone.utc)
+    },
+    {
+        "id": MEASUREMENT_ID_13,
+        "device_id": DEVICE_ID_2,
+        "measurement": 5200,
+        "unit": "g",
+        "taken_on": datetime(2025, 4, 3, 6, 32, 00, tzinfo=timezone.utc)
+    }
 ]
 
 def seed_db(db_session, db, items, pk="id"):

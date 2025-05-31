@@ -85,10 +85,9 @@ class Devices(Base, DictifiableMixin, QueryMethodsMixin):
 
         latest_measurement = DeviceMeasurements.get_latest_measurement(session, dev.id)
         if latest_measurement:
-            dev.latest_measurement = None
+            dev.latest_measurement = latest_measurement.measurement
             dev.latest_measurement_unit = latest_measurement.unit
-            dev.latest_measurement_taken_on = latest_measurement.taken_on
-    
+            dev.latest_measurement_taken_on = latest_measurement.taken_on    
 
         return dev
     
