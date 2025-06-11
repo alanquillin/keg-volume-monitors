@@ -118,7 +118,7 @@ class Devices(DeviceResource):
     
     @api.doc('list_devices', security=["apiKey"])
     @api.response(200, 'Success', device_mod)
-    @async_login_required(require_human=True)
+    @async_login_required(allow_device=False)
     async def get(self):
         with session_scope(self.config) as db_session:
             devices = DevicesDB.get_all_with_measurement_stats(db_session)
@@ -130,7 +130,7 @@ class Devices(DeviceResource):
     @api.doc('create_device', security=["apiKey"])
     @api.expect(new_device_mod, validate=True)
     @api.response(201, 'Success', device_mod)
-    @async_login_required(require_human=True, require_admin=True)
+    @async_login_required(allow_device=False, allow_service_account=False, require_admin=True)
     async def post(self):
         with session_scope(self.config) as db_session:
             data = api.payload
@@ -219,7 +219,7 @@ class Device(DeviceResource):
         super().__init__(*args, **kwargs)
     
     @api.doc('get_device', security=["apiKey"])
-    @async_login_required(require_human=True)
+    @async_login_required(allow_device=False)
     @api.response(200, 'Success', device_mod)
     async def get(self, id):
         with session_scope(self.config) as db_session:
@@ -231,7 +231,7 @@ class Device(DeviceResource):
 
     @api.doc('patch_device', security=["apiKey"])
     @api.expect(new_device_mod, validate=False)
-    @async_login_required(require_admin=True, require_human=True)
+    @async_login_required(allow_device=False, allow_service_account=False, require_admin=True)
     #@api.marshal_with(device_mod)
     async def patch(self, id):
         with session_scope(self.config) as db_session:
@@ -258,7 +258,7 @@ class Device(DeviceResource):
             return await self.transform_response(dev)
         
     @api.doc('delete_device', security=["apiKey"])
-    @async_login_required(require_admin=True, require_human=True)
+    @async_login_required(allow_device=False, allow_service_account=False, require_admin=True)
     async def delete(self, id):
         with session_scope(self.config) as db_session:
             dev = DevicesDB.get_by_pkey(db_session, id)
@@ -277,7 +277,7 @@ class DeviceRPC(DeviceResource):
         super().__init__(*args, **kwargs)
     
     @api.doc('device_rpc_execute', security=["apiKey"])
-    @async_login_required(require_admin=True, require_human=True)
+    @async_login_required(allow_device=False, require_admin=True)
     async def post(self, id, func_name):
         with session_scope(self.config) as db_session:
             dev = DevicesDB.get_by_pkey(db_session, id)
@@ -330,7 +330,7 @@ class DeviceManufacturerInfo(AsyncBaseResource):
         super().__init__(*args, **kwargs)
     
     @api.doc('device_manufacturer_info', security=["apiKey"])
-    @async_login_required(require_admin=True, require_human=True)
+    @async_login_required(allow_service_account=False, require_admin=True)
     async def get(self, id, key=None):
         with session_scope(self.config) as db_session:
             dev = DevicesDB.get_by_pkey(db_session, id)

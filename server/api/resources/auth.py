@@ -22,7 +22,7 @@ login_mod = api.model("Login", {
 
 })
 class AuthUser(UserMixin):
-    def __init__(self, id_, first_name, last_name, email, profile_pic, google_oidc_id, api_key, admin, human):
+    def __init__(self, id_, first_name, last_name, email, profile_pic, google_oidc_id, api_key, admin=False, human=False, service_account=False, device=False):
         super().__init__()
 
         self.id = id_
@@ -34,20 +34,29 @@ class AuthUser(UserMixin):
         self.api_key = api_key
         self.admin = admin
         self.human = human
+        self.service_account = service_account
+        self.device = device
 
     @staticmethod
     def from_user(user):
         if not user:
             return None
 
-        return AuthUser(user.id, user.first_name, user.last_name, user.email, user.profile_pic, user.google_oidc_id, user.api_key, user.admin, True)
+        return AuthUser(user.id, user.first_name, user.last_name, user.email, user.profile_pic, user.google_oidc_id, user.api_key, admin=user.admin, human=True)
     
     @staticmethod
     def from_device(device):
         if not device:
             return None
 
-        return AuthUser(device.id, device.name, None, None, None, None, device.api_key, False, True)
+        return AuthUser(device.id, device.name, None, None, None, None, device.api_key, device=True)
+    
+    @staticmethod
+    def from_service_account(svc_acc):
+        if not svc_acc:
+            return None
+
+        return AuthUser(svc_acc.id, svc_acc.name, None, None, None, None, svc_acc.api_key, service_account=True)
 
 
 class GoogleResourceMixin():

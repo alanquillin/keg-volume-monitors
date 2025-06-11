@@ -17,6 +17,7 @@ LOGGER = logging.getLogger(__name__)
 from db import session_scope
 from db.devices import Devices as DevicesDB
 from db.users import Users as UsersDB
+from db.service_accounts import ServiceAccount as ServiceAccountsDB
 from resources import API_PREFIX
 from resources.auth import AuthUser, api as AuthNS, session_urls as AuthSessionUrlsNS
 from resources.devices import api as DevicesNS
@@ -86,6 +87,11 @@ async def load_user_from_request(request):
                 user = UsersDB.get_by_api_key(db_session, key)
                 if user:
                     return AuthUser.from_user(user) 
+        elif type == "svc":
+            with session_scope(CONFIG) as db_session:
+                svc_acc = ServiceAccountsDB.get_by_api_key(db_session, key)
+                if svc_acc:
+                    return AuthUser.from_service_account(svc_acc)
         elif type == "device":
             with session_scope(CONFIG) as db_session:
                 dev = DevicesDB.get_by_api_key(db_session, key)

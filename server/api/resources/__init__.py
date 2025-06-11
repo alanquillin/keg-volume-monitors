@@ -101,7 +101,7 @@ class AsyncBaseResource(BaseResource):
         else:
             return method(*args, **kwargs)
 
-def async_login_required(require_human=False, require_admin=False, allow_callback=False):
+def async_login_required(allow_device=True, allow_service_account=True, require_admin=False, allow_callback=False):
     def dec(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
@@ -120,11 +120,14 @@ def async_login_required(require_human=False, require_admin=False, allow_callbac
                 else:
                     abort(401)
 
-            if require_human and not cu.human:
-                abort(401, "requires a human")
-
-            if require_admin and not cu.admin:
+            if require_admin and (not cu.admin and not cu.admin):
                 abort(401, "you are not authorized to execute admin actions")
+
+            if cu.device and not allow_device:
+                abort(401, "devices are not allowed")   
+
+            if cu.service_account and not allow_service_account:
+                abort(401, "service accounts are not allowed")           
 
             return await func(*args, **kwargs)
         return wrapper

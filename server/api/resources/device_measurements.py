@@ -31,7 +31,7 @@ class DeviceMeasurements(AsyncBaseResource):
         super().__init__(*args, **kwargs)
     
     @api.doc('list_device_measurements', security=["apiKey"])
-    @async_login_required(require_human=True)
+    @async_login_required(allow_device=False)
     #@api.marshal_list_with(device_measurement_mod)
     async def get(self, device_id):
         with session_scope(self.config) as db_session:

@@ -25,7 +25,7 @@ class DeviceStatus(AsyncBaseResource):
     
     @api.doc('device_status', security=["apiKey"])
     @api.expect(device_status_mod, validate=True)
-    @async_login_required()
+    @async_login_required(allow_service_account=False, require_admin=True)
     async def post(self, id):
         with session_scope(self.config) as db_session:
             dev = DevicesDB.get_with_measurement_stats(db_session, id)
