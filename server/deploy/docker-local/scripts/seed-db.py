@@ -29,7 +29,8 @@ DEVICES = [
         "empty_keg_weight_unit": "g",
         "start_volume": 18927.059, # 5 gallons
         "start_volume_unit": "ml",
-        "display_volume_unit": "ml"
+        "display_volume_unit": "ml",
+        "api_key": "ZGV2aWNlOjAyMjA0MWI1LTg5YWYtNDVlZS04N2VmLTEzNWY2OGMyNWYzZjpjMWYyMzAxNi1kM2Q2LTQ0ZDUtOTBlNy00Njc5YjJkODRjMjk="
     },
     {
         "id": DEVICE_ID_2,
@@ -42,7 +43,8 @@ DEVICES = [
         "empty_keg_weight_unit": "g",
         "start_volume": 18927.059, # 5 gallons
         "start_volume_unit": "ml",
-        "display_volume_unit": "ml"
+        "display_volume_unit": "ml",
+        "api_key": "ZGV2aWNlOjEzMzUzZWE5LWJmN2YtNDFkMy1iZDgyLTk3MjYyYmY2YTk3YTo3ODJlZTIzZS01NzE0LTQyZmUtOTBiNy1lMTM2YTZjNmY1NDY="
     }
 ]
 

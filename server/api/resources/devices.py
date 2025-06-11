@@ -4,13 +4,13 @@ from db import session_scope
 from db.devices import Devices as DevicesDB
 from lib import devices
 from lib.units import convert_from_ml, convert_to_ml
-from lib.util import calculate_volume_ml_from_weight, obj_keys_camel_to_snake
-from resources import AsyncBaseResource, DEVICE_STATE_MAP
+from lib.util import calculate_volume_ml_from_weight, obj_keys_camel_to_snake, random_string
+from resources import AsyncBaseResource, DEVICE_STATE_MAP, async_login_required, SWAGGER_AUTHORIZATIONS
 
 import asyncio
 from flask_restx import Namespace, fields, reqparse
 
-api = Namespace('devices', description='Manage devices')
+api = Namespace('devices', description='Manage devices', authorizations=SWAGGER_AUTHORIZATIONS)
 
 DEVICE_TYPES = ["weight", "flow"]
 
@@ -25,7 +25,8 @@ IN_FIELDS = {
     "startVolumeUnit": fields.String(required=False, description=""),
     "displayVolumeUnit": fields.String(required=False, description="The unit to 'display' the measurement values in.  Default = offsetUnit"),
     "state": fields.Integer(required=False, description=""),
-    "stateStr": fields.String(required=False, description="")
+    "stateStr": fields.String(required=False, description=""),
+    "apiKey": fields.String(required=False, description="")
     # 'meta': fields.String(required=False, description='Optional metadata for the device')
 }
 
@@ -115,8 +116,9 @@ class Devices(DeviceResource):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
     
-    @api.doc('list_devices')
-    #@api.marshal_list_with(device_mod)
+    @api.doc('list_devices', security=["apiKey"])
+    @api.response(200, 'Success', device_mod)
+    @async_login_required(require_human=True)
     async def get(self):
         with session_scope(self.config) as db_session:
             devices = DevicesDB.get_all_with_measurement_stats(db_session)
@@ -125,9 +127,10 @@ class Devices(DeviceResource):
                 return await self.transform_response(devices)
         return []
     
-    @api.doc('create_device')
+    @api.doc('create_device', security=["apiKey"])
     @api.expect(new_device_mod, validate=True)
-    #@api.marshal_with(device_mod, code=201)
+    @api.response(201, 'Success', device_mod)
+    @async_login_required(require_human=True, require_admin=True)
     async def post(self):
         with session_scope(self.config) as db_session:
             data = api.payload
@@ -157,6 +160,9 @@ class Devices(DeviceResource):
             
             if "displayUnit" not in keys:
                 data["displayVolumeUnit"] = self.config.get(f"general.preferred_vol_units.{dev_type}")
+
+            if "apiKey" not in keys:
+                data["apiKey"] = random_string(self.config.get("general.default_api_key_length"))
             
             if "name" not in keys:
                 self.logger.debug(f"Name was not provided for new device, attempting to pull device name from the cloud.  chip type: {data['chipType']}, chip id: {data['chipId']}, chip model: {data.get('chipModel', 'UNKNOWN')}")
@@ -179,10 +185,11 @@ class FindDevice(DeviceResource):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
     
-    @api.doc('find_device')
+    @api.doc('find_device', security=["apiKey"])
+    @api.response(200, 'Success', device_mod)
     @api.param('chip_id', 'The device chip_type id', _in="query")
     @api.param('chip_type', 'The device chip_type.  Currently only supports "Particle"', _in="query")
-    #@api.marshal_list_with(device_mod)
+    @async_login_required()
     async def get(self):
         parser = reqparse.RequestParser()
         parser.add_argument('chip_id', location='args', required=True)
@@ -211,8 +218,9 @@ class Device(DeviceResource):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
     
-    @api.doc('get_device')
-    #@api.marshal_with(device_mod)
+    @api.doc('get_device', security=["apiKey"])
+    @async_login_required(require_human=True)
+    @api.response(200, 'Success', device_mod)
     async def get(self, id):
         with session_scope(self.config) as db_session:
             dev = DevicesDB.get_with_measurement_stats(db_session, id)
@@ -221,8 +229,9 @@ class Device(DeviceResource):
                 return await self.transform_response(dev)
         api.abort(404)
 
-    @api.doc('patch_device')
+    @api.doc('patch_device', security=["apiKey"])
     @api.expect(new_device_mod, validate=False)
+    @async_login_required(require_admin=True, require_human=True)
     #@api.marshal_with(device_mod)
     async def patch(self, id):
         with session_scope(self.config) as db_session:
@@ -248,7 +257,8 @@ class Device(DeviceResource):
             dev = DevicesDB.update(db_session, id, **u_data)
             return await self.transform_response(dev)
         
-    @api.doc('delete_device')
+    @api.doc('delete_device', security=["apiKey"])
+    @async_login_required(require_admin=True, require_human=True)
     async def delete(self, id):
         with session_scope(self.config) as db_session:
             dev = DevicesDB.get_by_pkey(db_session, id)
@@ -266,7 +276,8 @@ class DeviceRPC(DeviceResource):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
     
-    @api.doc('device_rpc_execute')
+    @api.doc('device_rpc_execute', security=["apiKey"])
+    @async_login_required(require_admin=True, require_human=True)
     async def post(self, id, func_name):
         with session_scope(self.config) as db_session:
             dev = DevicesDB.get_by_pkey(db_session, id)
@@ -318,7 +329,8 @@ class DeviceManufacturerInfo(AsyncBaseResource):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
     
-    @api.doc('device_manufacturer_info')
+    @api.doc('device_manufacturer_info', security=["apiKey"])
+    @async_login_required(require_admin=True, require_human=True)
     async def get(self, id, key=None):
         with session_scope(self.config) as db_session:
             dev = DevicesDB.get_by_pkey(db_session, id)

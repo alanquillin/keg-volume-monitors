@@ -1,14 +1,16 @@
 from datetime import datetime
+import inspect
 
 from db import session_scope
 from db.devices import Devices as DevicesDB
 from db.device_measurements import DeviceMeasurements as DeviceMeasurementsDB
 from lib.time import utcnow_aware, utcfromtimestamp_aware
-from resources import AsyncBaseResource
+from resources import AsyncBaseResource, async_login_required, SWAGGER_AUTHORIZATIONS
 
-from flask_restx import Namespace, Resource, fields
+from flask_login import current_user
+from flask_restx import Namespace, fields
 
-api = Namespace('device_measurements', description='Manage Device Measurements')
+api = Namespace('device_measurements', description='Manage Device Measurements', authorizations=SWAGGER_AUTHORIZATIONS)
 
 save_device_measurement_mod = api.model('SaveDeviceMeasurement', {
     'm': fields.Float(required=True, description='The value of the taken measurement'),
@@ -28,7 +30,8 @@ class DeviceMeasurements(AsyncBaseResource):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
     
-    @api.doc('list_device_measurements')
+    @api.doc('list_device_measurements', security=["apiKey"])
+    @async_login_required(require_human=True)
     #@api.marshal_list_with(device_measurement_mod)
     async def get(self, device_id):
         with session_scope(self.config) as db_session:
@@ -37,10 +40,21 @@ class DeviceMeasurements(AsyncBaseResource):
                 return self.transform_response(measurements)
         return []
     
-    @api.doc('save_device_measurement')
+    @api.doc('save_device_measurement', security=["apiKey"])
     @api.expect(save_device_measurement_mod, validate=True)
+    @async_login_required()
     #@api.marshal_list_with(device_measurement_mod, code=201)
     async def post(self, device_id):
+        if inspect.iscoroutine(current_user):
+            cu = await current_user
+        else:
+            cu = current_user
+        
+        if not cu.human:
+            if str(cu.id).lower() != device_id.lower():
+                self.logger.error(f"Request to store measurements failed, the provided device id ({device_id}) does not match the id of the device authentication session ({cu.id})")
+                api.abort(400, "Device id does not match the id of the authenticated device session")
+
         with session_scope(self.config) as db_session:
             dev = DevicesDB.get_by_pkey(db_session, device_id)
             if not dev:

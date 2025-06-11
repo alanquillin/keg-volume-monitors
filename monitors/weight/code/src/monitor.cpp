@@ -26,7 +26,7 @@ SerialLogHandler logHandler(LOG_LEVEL_WARN, {
 
 HX711ADC scale(HX711_DOUT_PIN, HX711_SCK_PIN);		// parameter "gain" is omitted; the default value 128 is used by the library
 RGBLED led(RED_PIN, GREEN_PIN, BLUE_PIN);
-DataService dataService(SERVICE_ENABLED, "weight", HOSTNAME, PORT, false);
+DataService dataService(SERVICE_ENABLED, "weight", HOSTNAME, PORT, API_KEY, false);
 device_data_t deviceData = {true};
 
 float LAST_MEASUREMENT = 0;
@@ -431,7 +431,11 @@ void setup() {
     if(waitFor(WiFi.ready, 10000)){
         Log.info("Successfully connected to WiFi.");
     } else {
-        Log.error("Failed to connect to Wifi in time... this may go badly ");
+        Log.error("Failed to connect to Wifi in time... this may go badly");
+#if (PLATFORM_ID == PLATFORM_PHOTON || PLATFORM_ID == PLATFORM_PHOTON_PRODUCTION)
+        Log.info("Putting device WiFi in listening mode.");
+        WiFi.listen();
+#endif
     }
 
     scale.begin();

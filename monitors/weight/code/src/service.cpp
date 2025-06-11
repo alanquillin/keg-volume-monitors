@@ -1,6 +1,7 @@
 #include "config.h"
 #include "service.h"
 #include <HttpClient.h>
+#include "Base64RK.h"
 
 Logger logger("app.service");
 
@@ -11,12 +12,13 @@ const String CHIP_TYPE = "Particle";
 /**
 * Constructor.
 */
-DataService::DataService(bool enabled, String deviceType, String hostname, int port, bool secure, int maxRetries) {
+DataService::DataService(bool enabled, String deviceType, String hostname, int port, String apiKey, bool secure, int maxRetries) {
     _enabled = enabled;
     _deviceType = deviceType;
     _hostname = hostname;
     _port = port;
     _maxRetries = maxRetries;
+    _generateBearerToken(apiKey);
 
     if (secure) {
         _scheme = "https";
@@ -41,15 +43,6 @@ bool DataService::ping() {
     return false;
 }
 
-device_data_t DataService::getDeviceData(String id) {
-    if (!_enabled) {
-        return {true};
-    }
-    
-    JsonDocument doc = _getJson("/api/v1/devices/" + id);
-    return _parseDeviceData(doc);
-}
-
 device_data_t DataService::findDevice() {
     if (!_enabled) {
         return {true};
@@ -60,7 +53,9 @@ device_data_t DataService::findDevice() {
     path.concat("&chip_id=");
     path.concat(System.deviceID());
     
-    JsonDocument doc = _getJson(path);
+    http_response_t response = _get(path);
+    JsonDocument doc = _respToJson(response);
+
 
     JsonArray array = doc.as<JsonArray>();
     if (array.size() == 0) {
@@ -139,21 +134,16 @@ bool DataService::sendStatus(device_status_t status){
     return false;
 }
 
-JsonDocument DataService::_getJson(String path) {
-    return _respToJson(_get(path));
-}
-
 http_response_t DataService::_get(String path) {
-    return _get(_buildRequest(path));
-}
-
-http_response_t DataService::_get(http_request_t request){
+    http_request_t request = _buildRequest(path);
     http_response_t response;
 
     logger.trace("GET %s://%s:%d%s", _scheme.c_str(), request.hostname.c_str(), request.port, request.path.c_str());
 
     http_header_t headers[] = {
         { "Accept" , "application/json" },
+        { "Authorization", String::format("Bearer %s", _bearerToken)},
+        { "Authorization", String::format("Bearer %s", _bearerToken)},
         { NULL, NULL } // NOTE: Always terminate headers will NULL
     };
     http_client.get(request, response, headers);
@@ -165,10 +155,7 @@ http_response_t DataService::_get(http_request_t request){
 }
 
 http_response_t DataService::_post(String path, JsonDocument jDoc){
-    return _post(_buildRequest(path, jDoc));
-}
-
-http_response_t DataService::_post(http_request_t request){
+    http_request_t request = _buildRequest(path, jDoc);
     http_response_t response;
 
     logger.trace("POST %s://%s:%d%s", _scheme.c_str(), request.hostname.c_str(), request.port, request.path.c_str());
@@ -177,6 +164,7 @@ http_response_t DataService::_post(http_request_t request){
     http_header_t headers[] = {
         { "Content-Type", "application/json" },
         { "Accept" , "application/json" },
+        { "Authorization", String::format("Bearer %s", _bearerToken)},
         { NULL, NULL } // NOTE: Always terminate headers will NULL
     };
     http_client.post(request, response, headers);
@@ -222,7 +210,15 @@ device_data_t DataService::_parseDeviceData(JsonDocument jDoc) {
         res.isNull = false;
         JsonObject deviceDetails = jDoc.as<JsonObject>();
         res.id = String(deviceDetails["id"].as<const char*>());
-        res.deviceType = String(deviceDetails["deviceType"].as<const char*>());
+        res.deviceType = String(deviceDetails["deviceType"].as<const char*>());        
     }
     return res;
+}
+
+void DataService::_generateBearerToken(String apiKey){
+    String token = String::format("device|%s", apiKey);
+    size_t bufLen = token.length();
+    uint8_t *buf = new uint8_t[Base64::getMaxDecodedSize(bufLen)];
+
+    _bearerToken = Base64::encodeToString((const uint8_t *)token.c_str(), token.length());  
 }

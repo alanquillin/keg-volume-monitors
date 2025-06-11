@@ -24,7 +24,6 @@ import {
   MatDialogRef,
   MatDialogTitle,
 } from '@angular/material/dialog';
-import { L } from '@angular/cdk/keycodes';
 
 class DeviceExt extends Device {
   processing: boolean = false;

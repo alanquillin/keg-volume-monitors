@@ -4,12 +4,15 @@ import { inject, Inject, Injectable, InjectionToken, EventEmitter } from '@angul
 
 import { Observable, throwError, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
-import { HttpClient } from  '@angular/common/http';
+import { HttpClient, HttpHeaders } from  '@angular/common/http';
 
 import { WINDOW } from '../window.provider';
 import { isNilOrEmpty } from '../utils/helpers';
 import { Device } from '../models';
 
+const httpOptions = {
+  headers: new HttpHeaders({ 'Content-Type': 'application/json' })
+};
 export class DataError extends Error {
   statusCode!: number;
   statusText!: string;
@@ -92,7 +95,7 @@ export class DataService {
   updateDevice(id: string, data:any): Observable<Device> {
     const url: string = `${this.apiBaseUrl}/devices/${id}`;
 
-    return this.http.patch<Device>(url, data).pipe(catchError((err) => {return this.getError(err)}));
+    return this.http.patch<Device>(url, data, httpOptions).pipe(catchError((err) => {return this.getError(err)}));
   }
 
   enableMaintenanceMode(id: string): Observable<Device> {
@@ -117,6 +120,11 @@ export class DataService {
 
   rpc(id: string, func:string, data:any): Observable<Device> {
     const url: string = `${this.apiBaseUrl}/devices/${id}/rpc/${func}`;
-    return this.http.post<Device>(url, data).pipe(catchError((err) => {return this.getError(err)}));
+    return this.http.post<Device>(url, data, httpOptions).pipe(catchError((err) => {return this.getError(err)}));
+  }
+
+  login(email: string, password: string): Observable<any>{
+    const url = `${this.apiBaseUrl}/auth/login`;
+    return this.http.post<any>(url, {email, password}, httpOptions).pipe(catchError((err: any) => this.getError(err)));
   }
 }

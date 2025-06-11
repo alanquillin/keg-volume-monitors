@@ -21,7 +21,7 @@ from lib import json
 
 Base = declarative_base()
 
-__all__ = ["devices", "device_measurements"]
+__all__ = ["devices", "device_measurements", "users"]
 
 
 LOGGER = logging.getLogger(__name__)

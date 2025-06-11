@@ -2,6 +2,8 @@
   "__conversion_schema": {
     "api.port": "int",
     "db.port": "int",
+    "db.seed.skip": "bool",
+    "general.default_api_key_length": "int",
     "particle.device_services.enabled": "bool"
   },
   "api": {
@@ -10,6 +12,12 @@
     "schema": "http"
   },
   "app_id": "keg-volume-monitor",
+  "auth": {
+    "initial_admin": {
+      "username": "kvm-admin@fake.email",
+      "password": "supersecretpassword"
+    }
+  },
   "particle": {
     "base_url": "https://api.particle.io"
   },
@@ -17,6 +25,7 @@
     "preferred_vol_units": {
       "flow": "ml",
       "weight": "gal"
-    }
+    },
+    "default_api_key_length": 32
   }
 }
