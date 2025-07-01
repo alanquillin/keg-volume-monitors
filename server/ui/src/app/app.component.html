@@ -1,5 +1,7 @@
 <div class="header">
-  <!--<app-header [title]="title"></app-header>-->
+  @if(!hideHeader) {
+  <app-header [title]="title"></app-header>
+  }
 </div>
 <div class="content">
   <router-outlet></router-outlet>

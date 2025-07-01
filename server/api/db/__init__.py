@@ -1,7 +1,6 @@
 import logging
 import re
 from contextlib import contextmanager
-from functools import wraps
 from urllib.parse import quote
 
 from psycopg2.errors import InvalidTextRepresentation, NotNullViolation, UniqueViolation  # pylint: disable=no-name-in-module

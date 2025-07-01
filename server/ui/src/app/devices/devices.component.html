@@ -1,11 +1,10 @@
 @if(editWeightScale){
 <h1>Edit Device: ({{selectedDevice.name}})</h1>
+} @else if (addWeightScale) {
+<h1>Add New Device</h1>
 } @else {
-<h1>Devices</h1>
+<h1>Devices <button mat-mini-fab aria-label="device actions" (click)="reload()"><mat-icon>refresh</mat-icon></button></h1>
 }
-<div class="logout">
-    <a href="/auth/logout">Logout</a>
-</div>
 
 @if(loading) {
 <div>
@@ -13,12 +12,20 @@
 </div>
 }
 @if(!loading){
-@if(editWeightScale){
+@if(editWeightScale || addWeightScale){
 <form [formGroup]="editWeightScaleForm" (ngSubmit)="onEditWeightScaleSubmit()">
     <div>
         <mat-form-field appearance="outline">
             <mat-label for="name">Name:</mat-label>
             <input matInput type="text" id="name" formControlName="name">
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+            <mat-label for="chipType">Chip Type:</mat-label>
+            <input matInput type="text" id="chipType" formControlName="chipType" readonly>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+            <mat-label for="chipId">Chip Id:</mat-label>
+            <input matInput type="text" id="chipId" formControlName="chipId">
         </mat-form-field>
         <mat-form-field appearance="outline">
             <mat-label for="emptyKegVolume">Empty Keg Volume:</mat-label>
@@ -57,7 +64,7 @@
 </form>
 }
 @else {
-
+<button mat-flat-button (click)="addWeightScaleDevice()">Add Device</button>
 <div >
 @if (isMobile) {
     @for(d of devices; track d.id) {
@@ -92,6 +99,7 @@
                 <mat-spinner></mat-spinner>
             } @else {
             <button mat-flat-button (click)="editDevice(d)">Edit</button>
+            <button mat-flat-button (click)="deleteDevice(d)">Delete</button>
             @if (showDisableMaintenanceButton(d)) {
             <button mat-flat-button (click)="disableMaintenanceMode(d)">
                 <span>Disable Maintenance Mode</span>
@@ -180,9 +188,12 @@
                 <button mat-mini-fab aria-label="Edit device" (click)="editDevice(d)">
                     <mat-icon>edit</mat-icon>
                 </button> 
+                <button mat-mini-fab aria-label="Delete device" (click)="deleteDevice(d)">
+                    <mat-icon>delete</mat-icon>
+                </button> 
                 <button mat-mini-fab [matMenuTriggerFor]="menu" aria-label="device actions">
                     <mat-icon>more_vert</mat-icon>
-                  </button>
+                </button>
                 <mat-menu #menu="matMenu">
                     @if (showDisableMaintenanceButton(d)) {
                     <button mat-menu-item (click)="disableMaintenanceMode(d)" (click)="disableMaintenanceMode(d)">

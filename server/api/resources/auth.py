@@ -208,7 +208,10 @@ class Me(AsyncBaseResource):
         
         with session_scope(self.config) as db_session:
             user = UsersDB.get_by_pkey(db_session, cu.id)
-            return self.transform_response(user, remove_keys=["password_hash"])
+            remove_keys = ["password_hash"]
+            if not user.admin:
+                remove_keys.append("admin")
+            return self.transform_response(user, remove_keys=remove_keys)
 
 
 @api.route("/login")

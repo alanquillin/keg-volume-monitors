@@ -1,4 +1,4 @@
-"""create-migration
+"""Add a service accounts table
 
 Revision ID: 584934a825cf
 Revises: 4480f1a02a01

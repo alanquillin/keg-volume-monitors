@@ -1,0 +1,28 @@
+<div class="header-content">
+    <div class="header-title">
+        <a class="title" href="/home">Keg Volume Monitor</a>
+    </div>
+    <div class="header-nav">
+        <span tabindex="-1">
+            <button id="nav_toggle_user_menu"
+                mat-mini-fab
+                [matMenuTriggerFor]="navMenu">
+                <mat-icon>menu</mat-icon>
+            </button>
+            <mat-menu #navMenu="matMenu" xPosition="before" class="override">
+                <button mat-menu-item id="nav_signed_in_as" disabled>Signed in as {{ name }}</button>
+                <button mat-menu-item id="nav_dashboard" (click)="goto('home')"><mat-icon>home</mat-icon>Home</button>
+                @if(admin) {
+                <button mat-menu-item [matMenuTriggerFor]="managementOptions"><mat-icon>settings</mat-icon>Manage</button>
+                }
+                <button mat-menu-item id="nav_account_profile" (click)="goto('me')"><mat-icon>person</mat-icon>User Profile</button>
+                <button mat-menu-item id="nav_sign_out" (click)="logout()">Sign Out</button>
+            </mat-menu>
+
+            <mat-menu #managementOptions="matMenu">
+                <button mat-menu-item id="nav_manage_dashboard" (click)="goto('users')" [disabled]="true"><mat-icon>person</mat-icon>Users</button>
+                <button mat-menu-item id="nav_manage_dashboard" (click)="goto('settings')" [disabled]="true"><mat-icon>person</mat-icon>Settings</button>
+            </mat-menu>
+        </span>
+    </div>
+</div>

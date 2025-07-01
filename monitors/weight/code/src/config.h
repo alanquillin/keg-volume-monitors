@@ -29,10 +29,10 @@
     const int HX711_SCK_PIN = D18;
     const int BTN_PIN = A0;
     const int RED_PIN = D13;
-    const int GREEN_PIN = D14;
+    const int GREEN_PIN = D14;  
     const int BLUE_PIN = D16;
 
-    const String CHIP_MODEL = "Photon2";
+    const String CHIP_MODEL = "Photon2 / P2";
 #endif
 
 const String HOSTNAME = "192.168.122.143";

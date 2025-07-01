@@ -4,6 +4,7 @@
     "db.port": "int",
     "db.seed.skip": "bool",
     "general.default_api_key_length": "int",
+    "general.verify_device_on_create": "bool",
     "particle.device_services.enabled": "bool"
   },
   "api": {
@@ -26,6 +27,7 @@
       "flow": "ml",
       "weight": "gal"
     },
-    "default_api_key_length": 32
+    "default_api_key_length": 32,
+    "verify_device_on_create": true
   }
 }

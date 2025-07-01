@@ -49,6 +49,28 @@ PARTICLE_CLOUD_FN = {
     }
 }
 
+PLATFORM_MAP = {
+    3: "GCC",
+    6: "Photon",
+    8: "P1",
+    10: "Electron",
+    12: "Argon",
+    13: "Boron",
+    15: "ESOMX",
+    22: "ASOM",
+    23: "BSOM",
+    25: "B5SOM", 
+    26: "Tracker",
+    28: "TrackerM",
+    32: "Photon2 / P2",
+    35: "MSOM",
+    37: "Electron2"
+}
+
+def get_platform(details, **kargs):
+    platform_id = details.get("platform_id", 0)
+    return PLATFORM_MAP.get(platform_id, "UNKNOWN")
+
 def _req(fn):
     def wrapper(device_chip_id, path, **kwargs):
         api_key = CONFIG.get("particle.api_key")
@@ -108,7 +130,15 @@ async def ping(device_chip_id):
 @_particle_func
 async def get_details(device_chip_id, *args, **kwargs):
     try:
+        LOG.debug(f"Querying details for Particle device {device_chip_id}")
         resp_code, data = await _get(device_chip_id, "")
+        LOG.debug(f"Results: status code: {resp_code}, data: {data}")
+        if resp_code != 200:
+            return None
+        
+        platform = get_platform(data)
+        data["platform"] = platform
+        
         return data
     except Exception as ex:
         LOG.exception("There was an error trying to execute the cloud function for device chip id: %s", device_chip_id)

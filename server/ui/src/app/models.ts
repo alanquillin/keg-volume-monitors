@@ -62,3 +62,24 @@ export class Device {
     return DeviceState.Unknown;
   }
 }
+
+export class UserInfo {
+  id!: string;
+  email!: string;
+  firstName!: string;
+  lastName!: string;
+  profilePic!: string;
+  passwordEnabled!: boolean;
+  admin!: boolean;
+  apiKey!: string;
+  
+  constructor(from?: any) {
+    if(!isNilOrEmpty(from)) {
+      this.from(from);
+    }
+  }
+
+  from(from: any): void {
+    Object.assign(this, from);
+  }
+}

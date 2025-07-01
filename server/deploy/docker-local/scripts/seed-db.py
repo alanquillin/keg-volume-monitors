@@ -17,12 +17,13 @@ from sqlalchemy.sql import text
 
 DEVICE_ID_1 = "022041b5-89af-45ee-87ef-135f68c25f3f"
 DEVICE_ID_2 = "13353ea9-bf7f-41d3-bd82-97262bf6a97a"
+DEVICE_ID_3 = "2eba1564-e552-4df6-9056-584d2894d544"
 DEVICES = [
     {
         "id": DEVICE_ID_1,
-        "name": "Photon - 1",
+        "name": "Orange (photon 1)",
         "chip_type": "particle",
-        "chip_id": "31003c001747343337363432",
+        "chip_id": "3c001f000447343233323032",
         "chip_model": "Photon",
         "device_type": "weight",
         "empty_keg_weight": 4400,
@@ -34,10 +35,24 @@ DEVICES = [
     },
     {
         "id": DEVICE_ID_2,
-        "name": "Photon2 - 1",
+        "name": "Black (photon 2)",
         "chip_type": "particle",
         "chip_model": "Photon2",
         "chip_id": "0a10aced202194944a054e68",
+        "device_type": "weight",
+        "empty_keg_weight": 4400,
+        "empty_keg_weight_unit": "g",
+        "start_volume": 18927.059, # 5 gallons
+        "start_volume_unit": "ml",
+        "display_volume_unit": "ml",
+        "api_key": "ZGV2aWNlOjEzMzUzZWE5LWJmN2YtNDFkMy1iZDgyLTk3MjYyYmY2YTk3YTo3ODJlZTIzZS01NzE0LTQyZmUtOTBiNy1lMTM2YTZjNmY1NDY="
+    },
+    {
+        "id": DEVICE_ID_3,
+        "name": "Dark Blue (photon 2)",
+        "chip_type": "particle",
+        "chip_model": "Photon2",
+        "chip_id": "0a10aced202194944a05654c",
         "device_type": "weight",
         "empty_keg_weight": 4400,
         "empty_keg_weight_unit": "g",

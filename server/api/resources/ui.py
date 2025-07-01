@@ -15,7 +15,7 @@ class UI(AsyncBaseResource):
         super().__init__(*args, **kwargs)
     
     @api.doc('protected_ui', security=["apiKey"])
-    @async_login_required(require_human=True, allow_callback=True)
+    @async_login_required(allow_device=False, allow_service_account=False, allow_callback=True)
     async def get(self):
         dir_path = os.path.join(os.getcwd(), STATIC_URL_PATH)
         return send_from_directory(dir_path, "index.html")

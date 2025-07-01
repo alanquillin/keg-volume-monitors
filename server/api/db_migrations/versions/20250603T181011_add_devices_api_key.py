@@ -1,4 +1,4 @@
-"""create-migration
+"""Add api-key to devices table
 
 Revision ID: 4480f1a02a01
 Revises: ab0edda4cea7

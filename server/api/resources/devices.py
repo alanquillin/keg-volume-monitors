@@ -164,17 +164,36 @@ class Devices(DeviceResource):
             if "apiKey" not in keys:
                 data["apiKey"] = random_string(self.config.get("general.default_api_key_length"))
             
+            details = None
             if "name" not in keys:
-                self.logger.debug(f"Name was not provided for new device, attempting to pull device name from the cloud.  chip type: {data['chipType']}, chip id: {data['chipId']}, chip model: {data.get('chipModel', 'UNKNOWN')}")
+                self.logger.debug(f"Name was not provided for new device, attempting to pull device name from the cloud.  chip type: {data['chipType']}, chip id: {data['chipId']}")
                 name = "UNKNOWN"
                 try:
                     details = await devices.get_details(data["chipId"])
                     if details:
                         name = details.get("name", name)
                 except:
-                    self.logger.error(f"unable to retrieve name for device.  chip type: {data['chipType']}, chip id: {data['chipId']}, chip model: {data.get('chipModel', 'UNKNOWN')}")
+                    self.logger.error(f"unable to retrieve name for device.  chip type: {data['chipType']}, chip id: {data['chipId']}")
                 data["name"] = name
             
+            if "chipModel" not in keys:
+                self.logger.debug(f"chipModel was not provided for new device, attempting to pull device name from the cloud.  chip type: {data['chipType']}, chip id: {data['chipId']}")
+                if not details:
+                    try:
+                        details = await devices.get_details(data["chipId"])
+                    except:
+                        self.logger.error(f"unable to retrieve name for device.  chip type: {data['chipType']}, chip id: {data['chipId']}")
+                
+                if details:
+                    data["chipModel"] = details.get("platform", "UNKNOWN")
+            
+            if self.config.get("general.verify_device_on_create", True) and not details:
+                self.logger.debug("Verifying the device by fetching details from the device cloud")
+                details = await devices.get(data["chipId"], "get_details")
+                self.logger.debug(f"Details returned: {details}")
+                if not details:
+                    api.abort(400, "Invalid chip id or the device is not registered to you, could not pull details from device cloud")
+
             self.logger.debug(f"Creating device record with data: {data}")
             dev = DevicesDB.create(db_session, **obj_keys_camel_to_snake(data))
             return await self.transform_response(dev)
@@ -232,7 +251,6 @@ class Device(DeviceResource):
     @api.doc('patch_device', security=["apiKey"])
     @api.expect(new_device_mod, validate=False)
     @async_login_required(allow_device=False, allow_service_account=False, require_admin=True)
-    #@api.marshal_with(device_mod)
     async def patch(self, id):
         with session_scope(self.config) as db_session:
             dev = DevicesDB.get_by_pkey(db_session, id)
