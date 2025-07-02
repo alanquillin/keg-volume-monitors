@@ -1,28 +1,66 @@
 import inspect
 
-from flask_login import current_user
-from flask_restx import Namespace, reqparse
+from flask_login import current_user as _current_user
+from flask_restx import Namespace, reqparse, fields
 
 import asyncio
 from db import session_scope
 from db.users import Users as UsersDB
-from lib.util import random_string
+from lib.util import random_string, obj_keys_camel_to_snake
 from resources import AsyncBaseResource, async_login_required
 
 api = Namespace('users', description='Users APIs')
 
+IN_FIELDS = {
+    "email": fields.String(required=True, description=""),
+    "firstName": fields.String(required=False, description=""),
+    "lastName": fields.String(required=False, description=""),
+    "profilePic": fields.String(required=False, description=""),
+    "password": fields.String(required=False, description=""),
+}
+
+new_user_mod = api.model("NewUser", IN_FIELDS)
+user_mod = api.model("User", {
+        "id": fields.String(description="The id of the device", readonly=True),
+        "passwordEnabled": fields.Boolean(description="", readonly=True),
+        "admin": fields.Boolean(description="", readonly=True),
+        "apiKey": fields.String(description="", readonly=True)
+    } | IN_FIELDS)
+
+
+class UserResource(AsyncBaseResource):
+    async def transform_response(self, user, transform_keys=None, remove_keys=None, current_user=None):
+        data = user.to_dict()
+        if not remove_keys:
+            remove_keys = []
+        remove_keys.append("password_hash")
+        remove_keys.append("google_oidc_id")
+
+        if not current_user:
+            current_user = _current_user
+
+        if not current_user.admin and current_user.id == user.id:
+            remove_keys.append("api_key")
+
+        data["password_enabled"] = False
+        if data.get("password_hash"):
+            data["password_enabled"] = True
+
+        res = AsyncBaseResource.transform_response(data, transform_keys=transform_keys, remove_keys=remove_keys)
+        return res
+    
 @api.route("/me")
-class Me(AsyncBaseResource):
+class Me(UserResource):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
     
     @api.doc('get_current_user', security=["apiKey"])
     @api.response(200, 'Success')
-    async def get(self):    
-        if inspect.iscoroutine(current_user):
-            cu = await current_user
+    async def get(self, *args, **kwargs):    
+        if inspect.iscoroutine(_current_user):
+            cu = await _current_user
         else:
-            cu = current_user
+            cu = _current_user
 
         if not cu:
             api.abort(401)
@@ -35,62 +73,57 @@ class Me(AsyncBaseResource):
             
         with session_scope(self.config) as db_session:      
             user = UsersDB.get_by_pkey(db_session, cu.id)
-            remove_keys = ["password_hash"]
+            remove_keys = []
             if not user.admin:
                 remove_keys.append("admin")
-            return self.transform_response(user, remove_keys=remove_keys)
+            return await self.transform_response(user, remove_keys=remove_keys, current_user=cu)
         
-class UserResource(AsyncBaseResource):
-    async def transform_response(self, user, transform_keys=None, remove_keys=None):
-        data = user.to_dict()
-        FILTERED_KEYS = ["password_hash", "google_oidc_id"]
-
-        user_c = current_user
-        if not user_c.admin and user_c.id == user.id:
-            FILTERED_KEYS.append("api_key")
-
-        data["password_enabled"] = False
-        if data.get("password_hash"):
-            data["password_enabled"] = True
-
-        for key in FILTERED_KEYS:
-            if key in data:
-                del data[key]
-
-        res = AsyncBaseResource.transform_response(user, transform_keys=transform_keys, remove_keys=remove_keys)
-        return res
 
 @api.route("/")
 class Users(UserResource):
     @api.doc('get_users', security=["apiKey"])
-    @api.response(200, 'Success')
+    @api.response(200, 'Success', user_mod)
     @async_login_required(allow_device=False, allow_service_account=False, require_admin=True)
-    async def get(self):
+    async def get(self, *args, current_user=None, **kwargs):
         with session_scope(self.config) as db_session:
             users = UsersDB.query(db_session)
 
-            return [self.transform_response(u) for u in users]
+            return [await self.transform_response(u, current_user=current_user) for u in users]
 
     @api.doc('create_user', security=["apiKey"])
-    @api.response(200, 'Success')
+    @api.expect(new_user_mod, validate=True)
+    @api.response(201, 'Success', user_mod)
     @async_login_required(allow_device=False, allow_service_account=False, require_admin=True)
-    async def post(self):
-        data = self.get_request_data(remove_key=["id"])
+    async def post(self, *args, current_user=None, **kwargs):
+        data = data = api.payload
 
         with session_scope(self.config) as db_session:
-            self.logger.debug("Creating user with data: %s", data)
-            user = UsersDB.create(db_session, **data)
-            return self.transform_response(user)
+            u_data = obj_keys_camel_to_snake(data)
+            self.logger.debug("Creating user with data: %s", u_data)
+            user = UsersDB.create(db_session, **u_data)
+            return await self.transform_response(user, current_user=current_user)
 
 
-@api.route('/<id>')
+@api.route('/<user_id>')
 class User(UserResource):
     @api.doc('patch_user', security=["apiKey"])
-    @api.response(200, 'Success')
+    @api.response(200, 'Success', user_mod)
     @async_login_required(allow_device=False, allow_service_account=False, require_admin=True)
-    async def patch(self, user_id):
+    async def get(self, user_id, *args, current_user=None, **kwargs):
+        with session_scope(self.config) as db_session:
+            user = UsersDB.get_by_pkey(db_session, user_id)
+
+            if not user:
+                api.abort(404)
+
+            return await self.transform_response(user, current_user=current_user)
+        
+    @api.doc('patch_user', security=["apiKey"])
+    @api.response(200, 'Success', user_mod)
+    @async_login_required(allow_device=False, allow_service_account=False, require_admin=True)
+    async def patch(self, user_id, *args, current_user=None, **kwargs):
         user_c = current_user
-        data = self.get_request_data(remove_key=["id", "apiKey", "locations"])
+        data = api.payload
 
         if "password" in data and user_c.id != user_id:
             api.abort(400, "You are not authorized to change the password for another user.")
@@ -106,21 +139,23 @@ class User(UserResource):
                 self.logger.debug("Disabling password for user '%s' (%s): %s", user.email, user_id)
                 UsersDB.disable_password(db_session, user_id)
 
-            self.logger.debug("Updating user '%s' (%s) with data: %s", user.email, user_id, data)
-            user = UsersDB.update(db_session, user_id, **data)
-            return self.transform_response(user)
+            u_data = obj_keys_camel_to_snake(data)
+            self.logger.debug("Updating user '%s' (%s) with data: %s", user.email, user_id, u_data)
+            user = UsersDB.update(db_session, user_id, **u_data)
+            return await self.transform_response(user, current_user=current_user)
 
     @api.doc('delete_user', security=["apiKey"])
-    @api.response(200, 'Success')
+    @api.expect(new_user_mod, validate=False)
+    @api.response(200, 'Success', user_mod)
     @async_login_required(allow_device=False, allow_service_account=False, require_admin=True)
-    async def delete(self, user_id):
+    async def delete(self, user_id, *args, current_user=None, **kwargs):
         with session_scope(self.config) as db_session:
             user = UsersDB.get_by_pkey(db_session, user_id)
 
             if not user:
                 api.abort(404)
 
-            if user_id == current_user.id:
+            if user_id == str(current_user.id):
                 api.abort(400, "You cannot delete your own user")
 
             self.logger.debug("Deleting user '%s' (%s)", user.email, user_id)
@@ -128,12 +163,12 @@ class User(UserResource):
             return True
         
 
-@api.route('/<id>/api_key')
+@api.route('/<user_id>/api_key')
 class UserAPIKey(UserResource):
     @api.doc('get_user_api_key', security=["apiKey"])
     @api.response(200, 'Success')
     @async_login_required(allow_device=False, allow_service_account=False)
-    async def get(self, user_id):
+    async def get(self, user_id, *args, current_user=None, **kwargs):
         with session_scope(self.config) as db_session:
             user = UsersDB.get_by_pkey(db_session, user_id)
 
@@ -148,7 +183,7 @@ class UserAPIKey(UserResource):
     @api.doc('generate_user_api_key', security=["apiKey"])
     @api.response(200, 'Success')
     @async_login_required(allow_device=False, allow_service_account=False)
-    async def post(self, user_id):
+    async def post(self, user_id, *args, current_user=None, **kwargs):
         with session_scope(self.config) as db_session:
             user = UsersDB.get_by_pkey(db_session, user_id)
 
@@ -175,7 +210,7 @@ class UserAPIKey(UserResource):
     @api.doc('delete_user_api_key', security=["apiKey"])
     @api.response(200, 'Success')
     @async_login_required(allow_device=False, allow_service_account=False)
-    async def delete(self, user_id):
+    async def delete(self, user_id, *args, current_user=None, **kwargs):
         with session_scope(self.config) as db_session:
             user = UsersDB.get_by_pkey(db_session, user_id)
 

@@ -129,6 +129,6 @@ def async_login_required(allow_device=True, allow_service_account=True, require_
             if cu.service_account and not allow_service_account:
                 abort(401, "service accounts are not allowed")           
 
-            return await func(*args, **kwargs)
+            return await func(*args, current_user=cu, **kwargs)
         return wrapper
     return dec

@@ -7,7 +7,7 @@ from db.device_measurements import DeviceMeasurements as DeviceMeasurementsDB
 from lib.time import utcnow_aware, utcfromtimestamp_aware
 from resources import AsyncBaseResource, async_login_required, SWAGGER_AUTHORIZATIONS
 
-from flask_login import current_user
+from flask_login import current_user as _current_user
 from flask_restx import Namespace, fields
 
 api = Namespace('device_measurements', description='Manage Device Measurements', authorizations=SWAGGER_AUTHORIZATIONS)
@@ -43,16 +43,10 @@ class DeviceMeasurements(AsyncBaseResource):
     @api.doc('save_device_measurement', security=["apiKey"])
     @api.expect(save_device_measurement_mod, validate=True)
     @async_login_required()
-    #@api.marshal_list_with(device_measurement_mod, code=201)
-    async def post(self, device_id):
-        if inspect.iscoroutine(current_user):
-            cu = await current_user
-        else:
-            cu = current_user
-        
-        if not cu.human:
-            if str(cu.id).lower() != device_id.lower():
-                self.logger.error(f"Request to store measurements failed, the provided device id ({device_id}) does not match the id of the device authentication session ({cu.id})")
+    async def post(self, device_id, *args, current_user=None, **kwargs):
+        if not current_user.human:
+            if str(current_user.id).lower() != device_id.lower():
+                self.logger.error(f"Request to store measurements failed, the provided device id ({device_id}) does not match the id of the device authentication session ({current_user.id})")
                 api.abort(400, "Device id does not match the id of the authenticated device session")
 
         with session_scope(self.config) as db_session:

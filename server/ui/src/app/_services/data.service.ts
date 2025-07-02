@@ -145,6 +145,11 @@ export class DataService {
     return this.http.get<UserInfo>(url).pipe(catchError((err) => {return this.getError(err)}));
   }
 
+  getUsers(): Observable<UserInfo[]> {
+    const url = `${this.apiBaseUrl}/users`;
+    return this.http.get<UserInfo[]>(url).pipe(catchError((err) => {return this.getError(err)}));
+  }
+
   getUser(id: String): Observable<UserInfo> {
     const url = `${this.apiBaseUrl}/users/${id}`;
     return this.http.get<UserInfo>(url).pipe(catchError((err) => {return this.getError(err)}));
@@ -166,7 +171,7 @@ export class DataService {
   }
 
   generateUserAPIKey(userId: string): Observable<string> {
-    const url = `${this.apiBaseUrl}/users/${userId}/api_key/generate?regen=true`;
+    const url = `${this.apiBaseUrl}/users/${userId}/api_key?regen=true`;
     return this.http.post<string>(url, {}).pipe(catchError((err) => {return this.getError(err)}));
   }
 

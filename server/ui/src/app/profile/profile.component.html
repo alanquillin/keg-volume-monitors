@@ -64,27 +64,61 @@
 }
 @if (userInfo && changePassword) {
 <div class="change-password">
-        <form [formGroup]="editFormGroup" (ngSubmit)="savePassword()">
-            <div class="heading"><p>Change Password</p></div>
-            <div class="change-password-form">
-                <mat-form-field appearance="outline">
-                    <mat-label for="password">Password:</mat-label>
-                    <input matInput type="text" id="password" formControlName="password">
-                </mat-form-field>
-                <mat-form-field appearance="outline">
-                    <mat-label for="confirmPassword">Confirm Password:</mat-label>
-                    <input matInput type="text" id="confirmPassword" formControlName="confirmPassword">
-                </mat-form-field>
-            </div>
-            <div class="profile-actions">
-                @if (processing) {
-                    <mat-spinner></mat-spinner>
-                }
-                <button mat-raised-button [disabled]="!changePasswordFormGroup.valid || processing">
-                    <mat-icon>save</mat-icon> Save
+    <form [formGroup]="changePasswordFormGroup" (ngSubmit)="savePassword()">
+        <div class="heading"><p>Change Password</p></div>
+        <div class="change-password-form">
+            <mat-form-field appearance="outline">
+                <mat-label for="password">Password:</mat-label>
+                <input matInput type="{{ showPassword ? 'text' : 'password' }}" id="password" formControlName="password">
+                <button matIconButton matSuffix (click)="toggleShowPassword()" matTooltip="{{showPassword ? 'hide password': 'show password'}}">
+                    @if (showPassword) {
+                    <mat-icon>visibility_off</mat-icon>
+                    } @else {
+                    <mat-icon>visibility</mat-icon>
+                    }
                 </button>
-                <button mat-raised-button (click)="cancelChangePassword()" [disabled]="processing"><mat-icon>cancel</mat-icon> Cancel</button>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+                <mat-label for="confirmPassword">Confirm Password:</mat-label>
+                <input matInput type="{{ showConfirmPassword ? 'text' : 'password' }}" id="confirmPassword" formControlName="confirmPassword">
+                <button matIconButton matSuffix (click)="toggleShowConfirmPassword()" matTooltip="{{showConfirmPassword ? 'hide password': 'show password'}}">
+                    @if (showConfirmPassword) {
+                    <mat-icon>visibility_off</mat-icon>
+                    } @else {
+                    <mat-icon>visibility</mat-icon>
+                    }
+                </button>
+            </mat-form-field>
+            @if (changePasswordFormGroup.get('password')?.touched && changePasswordFormGroup.get('password')?.hasError('required')){
+            <div class="error-message">
+                Password is required.
             </div>
-        </form>
+            }
+            @if (changePasswordFormGroup.get('password')?.touched && changePasswordFormGroup.get('password')?.hasError('minlength')) {
+            <div class="error-message">
+                Password must be at least 10 characters.
+            </div>
+            }
+            @if (changePasswordFormGroup.get('password')?.touched && changePasswordFormGroup.get('password')?.hasError('pattern')) {
+            <div class="error-message">
+                Password must have at least 1 number, 1 symbol and 1 uppercase letter
+            </div>
+            }
+        </div>
+        <div class="profile-actions">
+            @if (processing) {
+                <mat-spinner></mat-spinner>
+            }
+            @if (changePasswordFormGroup.hasError('matching') && changePasswordFormGroup.get('confirmPassword')?.touched) {
+                <div class="error-message">
+                    Passwords do not match
+                </div>
+            }
+            <button mat-raised-button [disabled]="!changePasswordFormGroup.valid || processing">
+                <mat-icon>save</mat-icon> Save
+            </button>
+            <button mat-raised-button (click)="cancelChangePassword()" [disabled]="processing"><mat-icon>cancel</mat-icon> Cancel</button>
+        </div>
+    </form>
 </div>
 }

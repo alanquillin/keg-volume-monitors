@@ -13,7 +13,7 @@ from oauthlib.oauth2 import WebApplicationClient
 import asyncio
 from db import session_scope
 from db.users import Users as UsersDB
-from resources import BaseResource, AsyncBaseResource, async_login_required
+from resources import BaseResource, AsyncBaseResource
 
 api = Namespace('auth', description='Auth APIs')
 session_urls = Namespace('auth_session_urls', description='Auth Session Urls')

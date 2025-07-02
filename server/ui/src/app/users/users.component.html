@@ -1,1 +1,195 @@
-<p>users works!</p>
+@if (editingUser) {
+<h1>Edit User: ({{selectedUser.email}})</h1>
+} @else if (addingUser) {
+<h1>Add New User</h1>
+} @else {
+<h1>Users <button mat-mini-fab aria-label="device actions" (click)="reload()"><mat-icon>refresh</mat-icon></button></h1>
+}
+
+@if (loading) {
+<div>
+    <mat-spinner></mat-spinner> Loading... calm down.
+</div>
+}
+
+@if (!loading) {
+@if (addingUser || editingUser) {
+<form [formGroup]="editUserForm" (ngSubmit)="onEditUserSubmit()">
+    <div>
+        <mat-form-field appearance="outline">
+            <mat-label for="email">Email:</mat-label>
+            <input matInput type="text" id="email" formControlName="email">
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+            <mat-label for="firstName">First Name:</mat-label>
+            <input matInput type="text" id="firstName" formControlName="firstName">
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+            <mat-label for="lastName">Last Name:</mat-label>
+            <input matInput type="text" id="lastName" formControlName="lastName">
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+            <mat-label for="profilePic">Profile Pic Url:</mat-label>
+            <input matInput type="text" id="profilePic" formControlName="profilePic">
+        </mat-form-field>
+        <mat-checkbox formControlName="admin">Admin?</mat-checkbox>
+    </div>
+    <div>
+        @if (updating) {
+            <mat-spinner></mat-spinner>
+        }
+        <button mat-flat-button type="submit" [disabled]="!editUserForm.valid || !editUserHasChanges() || updating">Save</button>
+        <button mat-stroked-button [disabled]="updating" (click)="cancelEditUser()">Cancel</button>
+    </div>
+</form>
+} @else if (changePassword) {
+<div class="change-password">
+    <form [formGroup]="changePasswordFormGroup" (ngSubmit)="savePassword()">
+        <div class="heading"><p>Change Password</p></div>
+        <div class="change-password-form">
+            <mat-form-field appearance="outline">
+                <mat-label for="password">Password:</mat-label>
+                <input matInput type="{{ showPassword ? 'text' : 'password' }}" id="password" formControlName="password">
+                <button matIconButton matSuffix (click)="toggleShowPassword()" matTooltip="{{showPassword ? 'hide password': 'show password'}}">
+                    @if (showPassword) {
+                    <mat-icon>visibility_off</mat-icon>
+                    } @else {
+                    <mat-icon>visibility</mat-icon>
+                    }
+                </button>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+                <mat-label for="confirmPassword">Confirm Password:</mat-label>
+                <input matInput type="{{ showConfirmPassword ? 'text' : 'password' }}" id="confirmPassword" formControlName="confirmPassword">
+                <button matIconButton matSuffix (click)="toggleShowConfirmPassword()" matTooltip="{{showConfirmPassword ? 'hide password': 'show password'}}">
+                    @if (showConfirmPassword) {
+                    <mat-icon>visibility_off</mat-icon>
+                    } @else {
+                    <mat-icon>visibility</mat-icon>
+                    }
+                </button>
+            </mat-form-field>
+            @if (changePasswordFormGroup.get('password')?.touched && changePasswordFormGroup.get('password')?.hasError('required')){
+            <div class="error-message">
+                Password is required.
+            </div>
+            }
+            @if (changePasswordFormGroup.get('password')?.touched && changePasswordFormGroup.get('password')?.hasError('minlength')) {
+            <div class="error-message">
+                Password must be at least 10 characters.
+            </div>
+            }
+            @if (changePasswordFormGroup.get('password')?.touched && changePasswordFormGroup.get('password')?.hasError('pattern')) {
+            <div class="error-message">
+                Password must have at least 1 number, 1 symbol and 1 uppercase letter
+            </div>
+            }
+        </div>
+        <div class="profile-actions">
+            @if (selectedUser.processing) {
+                <mat-spinner></mat-spinner>
+            }
+            @if (changePasswordFormGroup.hasError('matching') && changePasswordFormGroup.get('confirmPassword')?.touched) {
+                <div class="error-message">
+                    Passwords do not match
+                </div>
+            }
+            <button mat-raised-button [disabled]="!changePasswordFormGroup.valid || selectedUser.processing">
+                <mat-icon>save</mat-icon> Save
+            </button>
+            <button mat-raised-button (click)="cancelChangePassword()" [disabled]="selectedUser.processing"><mat-icon>cancel</mat-icon> Cancel</button>
+        </div>
+    </form>
+</div>
+} @else {
+<button mat-flat-button (click)="addUser()">Add User</button>
+<div >
+    <table mat-table [dataSource]="users" class="mat-elevation-z8">
+
+        <ng-container matColumnDef="email">
+          <th mat-header-cell *matHeaderCellDef> Email </th>
+          <td mat-cell *matCellDef="let u"> {{u.email}} </td>
+        </ng-container>
+
+        <ng-container matColumnDef="firstName">
+          <th mat-header-cell *matHeaderCellDef> First Name </th>
+          <td mat-cell *matCellDef="let u"> {{u.firstName}} </td>
+        </ng-container>
+
+        <ng-container matColumnDef="lastName">
+          <th mat-header-cell *matHeaderCellDef> Last Name </th>
+          <td mat-cell *matCellDef="let u"> {{u.lastName}} </td>
+        </ng-container>
+
+        <ng-container matColumnDef="apiKey">
+          <th mat-header-cell *matHeaderCellDef> API Key </th>
+          <td mat-cell *matCellDef="let u">
+            @if (u.showApiKey) {
+            {{ u.apiKey }}
+            }
+            <button matButton="outlined" (click)="toggleApiKeyVisibility(u)">
+                <mat-icon>{{ u.showApiKey ? 'visibility_off' : 'visibility' }}</mat-icon>
+                {{ u.showApiKey ? 'Hide' : 'Show'}}
+            </button>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="passwordEnabled">
+          <th mat-header-cell *matHeaderCellDef> Password Enabled? </th>
+          <td mat-cell *matCellDef="let u">
+            @if (u.passwordEnabled) {
+            <mat-icon>check</mat-icon>
+            }
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="admin">
+          <th mat-header-cell *matHeaderCellDef> Admin? </th>
+          <td mat-cell *matCellDef="let u">
+            @if (u.admin) {
+            <mat-icon>check</mat-icon>
+            }
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef> </th>
+            <td mat-cell *matCellDef="let u">
+                @if (u.processing) {
+                <mat-spinner></mat-spinner>
+                } @else {
+                <button mat-mini-fab aria-label="Edit device" (click)="editUser(u)">
+                    <mat-icon>edit</mat-icon>
+                </button> 
+                <button mat-mini-fab aria-label="Delete device" (click)="deleteUser(u)">
+                    <mat-icon>delete</mat-icon>
+                </button> 
+                <button mat-mini-fab [matMenuTriggerFor]="menu" aria-label="device actions">
+                    <mat-icon>more_vert</mat-icon>
+                </button>
+                <mat-menu #menu="matMenu">
+                    <button mat-menu-item (click)="startChangePassword(u)">
+                      <mat-icon>center_focus_strong</mat-icon>
+                      <span>{{u.passwordEnabled ? 'Reset Password' : 'Set Password'}}</span>
+                    </button>
+                    <button mat-menu-item (click)="generateAPIKey(u)">
+                      <mat-icon>{{isNilOrEmpty(u.apiKey) ? "add" : "refresh"}}</mat-icon>
+                      <span>{{isNilOrEmpty(u.apiKey) ? 'Generate API Key' : 'Regenerate API Key'}}</span>
+                    </button>
+                    @if (!isNilOrEmpty(u.apiKey)) {
+                    <button mat-menu-item (click)="deleteAPIKey(u)">
+                      <mat-icon>delete_forever</mat-icon>
+                      <span>Delete API Key</span>
+                    </button>
+                    }
+                </mat-menu>
+                }
+            </td>
+        </ng-container>
+      
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+    </table>
+</div>
+}
+}

@@ -13,10 +13,11 @@ import {MatFormFieldModule} from '@angular/material/form-field';
 import {MatIconModule} from '@angular/material/icon';
 import {MatProgressSpinnerModule} from '@angular/material/progress-spinner';
 import {MatSnackBar} from '@angular/material/snack-bar';
+import { MatTooltipModule } from '@angular/material/tooltip';
 
 @Component({
   selector: 'app-profile',
-  imports: [ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatProgressSpinnerModule, MatIconModule],
+  imports: [ReactiveFormsModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatProgressSpinnerModule, MatIconModule, MatTooltipModule],
   templateUrl: './profile.component.html',
   styleUrl: './profile.component.scss'
 })
@@ -28,6 +29,8 @@ export class ProfileComponent {
   processing = false;
   editFormGroup: FormGroup;
   changePasswordFormGroup: FormGroup;
+  showPassword = false;
+  showConfirmPassword = false;
 
   isNilOrEmpty = isNilOrEmpty;
   _ = _;
@@ -44,7 +47,7 @@ export class ProfileComponent {
     });
 
     this.changePasswordFormGroup =  this.fb.group({
-      password: this.fb.control<string|null>('', [Validators.required, Validators.pattern('(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&]).{8,}')]),
+      password: this.fb.control<string|null>('', [Validators.required, Validators.pattern('(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&]).{8,}'), Validators.minLength(10)]),
       confirmPassword: this.fb.control<string|null>('', Validators.required),
     }, { validators: [Validation.match('password', 'confirmPassword')] });
   }
@@ -231,6 +234,14 @@ export class ProfileComponent {
         }
       });
     }
+  }
+
+  toggleShowPassword() : void {
+    this.showPassword = !this.showPassword;
+  }
+
+  toggleShowConfirmPassword() : void {
+    this.showConfirmPassword = !this.showConfirmPassword;
   }
 
   get name(): string {

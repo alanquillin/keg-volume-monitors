@@ -119,7 +119,7 @@ class Devices(DeviceResource):
     @api.doc('list_devices', security=["apiKey"])
     @api.response(200, 'Success', device_mod)
     @async_login_required(allow_device=False)
-    async def get(self):
+    async def get(self, *args, current_user=None, **kwargs):
         with session_scope(self.config) as db_session:
             devices = DevicesDB.get_all_with_measurement_stats(db_session)
             if devices:
@@ -131,7 +131,7 @@ class Devices(DeviceResource):
     @api.expect(new_device_mod, validate=True)
     @api.response(201, 'Success', device_mod)
     @async_login_required(allow_device=False, allow_service_account=False, require_admin=True)
-    async def post(self):
+    async def post(self, *args, current_user=None, **kwargs):
         with session_scope(self.config) as db_session:
             data = api.payload
             data["chipType"] = "Particle"
@@ -209,7 +209,7 @@ class FindDevice(DeviceResource):
     @api.param('chip_id', 'The device chip_type id', _in="query")
     @api.param('chip_type', 'The device chip_type.  Currently only supports "Particle"', _in="query")
     @async_login_required()
-    async def get(self):
+    async def get(self, *args, current_user=None, **kwargs):
         parser = reqparse.RequestParser()
         parser.add_argument('chip_id', location='args', required=True)
         parser.add_argument('chip_type', location='args')
@@ -238,9 +238,9 @@ class Device(DeviceResource):
         super().__init__(*args, **kwargs)
     
     @api.doc('get_device', security=["apiKey"])
-    @async_login_required(allow_device=False)
     @api.response(200, 'Success', device_mod)
-    async def get(self, id):
+    @async_login_required(allow_device=False)
+    async def get(self, id, *args, current_user=None, **kwargs):
         with session_scope(self.config) as db_session:
             dev = DevicesDB.get_with_measurement_stats(db_session, id)
             if dev:
@@ -251,7 +251,7 @@ class Device(DeviceResource):
     @api.doc('patch_device', security=["apiKey"])
     @api.expect(new_device_mod, validate=False)
     @async_login_required(allow_device=False, allow_service_account=False, require_admin=True)
-    async def patch(self, id):
+    async def patch(self, id, *args, current_user=None, **kwargs):
         with session_scope(self.config) as db_session:
             dev = DevicesDB.get_by_pkey(db_session, id)
             if not dev:
@@ -277,7 +277,7 @@ class Device(DeviceResource):
         
     @api.doc('delete_device', security=["apiKey"])
     @async_login_required(allow_device=False, allow_service_account=False, require_admin=True)
-    async def delete(self, id):
+    async def delete(self, id, *args, current_user=None, **kwargs):
         with session_scope(self.config) as db_session:
             dev = DevicesDB.get_by_pkey(db_session, id)
             if not dev:
@@ -296,7 +296,7 @@ class DeviceRPC(DeviceResource):
     
     @api.doc('device_rpc_execute', security=["apiKey"])
     @async_login_required(allow_device=False, require_admin=True)
-    async def post(self, id, func_name):
+    async def post(self, id, func_name, *args, current_user=None, **kwargs):
         with session_scope(self.config) as db_session:
             dev = DevicesDB.get_by_pkey(db_session, id)
             if not dev:
@@ -349,7 +349,7 @@ class DeviceManufacturerInfo(AsyncBaseResource):
     
     @api.doc('device_manufacturer_info', security=["apiKey"])
     @async_login_required(allow_service_account=False, require_admin=True)
-    async def get(self, id, key=None):
+    async def get(self, id, key=None, *args, current_user=None, **kwargs):
         with session_scope(self.config) as db_session:
             dev = DevicesDB.get_by_pkey(db_session, id)
             if not dev:
