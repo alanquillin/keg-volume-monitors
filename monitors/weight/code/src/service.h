@@ -21,11 +21,10 @@ typedef struct {
 class DataService 
 {
     public:
-        DataService(bool enabled, String deviceType, String hostname, int port, bool secure=false, int maxRetries=3);
+        DataService(bool enabled, String deviceType, String hostname, int port, String apiKey, bool secure=false, int maxRetries=3);
 
         bool ping();
         device_data_t findDevice();
-        device_data_t getDeviceData(String id);
         device_data_t registerDevice();
         bool sendMeasurement(String id, float measurement, long timestamp);
         bool sendStatus(device_status_t status);
@@ -37,15 +36,14 @@ class DataService
         int _port;
         String _scheme;
         int _maxRetries;
+        String _bearerToken;
         http_request_t _buildRequest(String path);
         http_request_t _buildRequest(String path, JsonDocument jDoc);
-        JsonDocument _getJson(String path);
         http_response_t _get(String path);
-        http_response_t _get(http_request_t request);
         http_response_t _post(String path, JsonDocument jDoc);
-        http_response_t _post(http_request_t request);
         JsonDocument _respToJson(http_response_t response);
         device_data_t _parseDeviceData(JsonDocument jDoc);
+        void _generateBearerToken(String apiKey);
 };
 
 #endif

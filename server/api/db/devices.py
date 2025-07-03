@@ -32,6 +32,7 @@ class Devices(Base, DictifiableMixin, QueryMethodsMixin):
     start_volume_unit = Column(String, nullable=False)
     display_volume_unit = Column(String, nullable=False)
     state = Column(Integer, ColumnDefault(1), nullable=False)
+    api_key = Column(String, nullable=False)
     meta = Column(NestedMutableDict.as_mutable(JSONB), nullable=True)
 
     _measurement_count = None
@@ -68,7 +69,10 @@ class Devices(Base, DictifiableMixin, QueryMethodsMixin):
 
     measurements = relationship("DeviceMeasurements", back_populates="device")
 
-    __table_args__ = (Index("ix_sensor_chip_type_and_chip_id", chip_type, chip_id, unique=False),)
+    __table_args__ = (
+        Index("ix_device_chip_type_and_chip_id", chip_type, chip_id, unique=False),
+        Index("ix_device_api_key", api_key, unique=True),
+        )
 
     @classmethod
     def _build_query_with_measurement_stats(cls, session, **kwargs):
@@ -122,5 +126,12 @@ class Devices(Base, DictifiableMixin, QueryMethodsMixin):
         return Devices._all_with_measurement_stats(session, query=q, **kwargs)
     
 
+    @classmethod
+    def get_by_api_key(cls, session, api_key, **kwargs):
+        res = cls.query(session, api_key=api_key, **kwargs)
+        if not res:
+            return None
+
+        return res[0]
         
 

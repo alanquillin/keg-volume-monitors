@@ -98,3 +98,7 @@ export function closeFullscreen(doc: Document){
     docWithBrowsersExitFunctions.msExitFullscreen();
   }
 }
+
+export function goto(path: string): void {
+  window.location.href = `/${path}`;
+}

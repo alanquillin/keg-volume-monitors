@@ -1,8 +1,8 @@
 import { Component, inject, model, signal } from '@angular/core';
 import { DataService, DataError } from '../_services/data.service';
-import { Device, DeviceState } from '../models';
+import { Device, DeviceState, UserInfo } from '../models';
 import { FormGroup, FormBuilder, Validators, ReactiveFormsModule, FormsModule } from '@angular/forms';
-import { isNilOrEmpty } from '../utils/helpers'
+import { isNilOrEmpty, goto } from '../utils/helpers'
 import * as _ from "lodash";
 import { DeviceDetectorService } from 'ngx-device-detector';
 
@@ -24,7 +24,6 @@ import {
   MatDialogRef,
   MatDialogTitle,
 } from '@angular/material/dialog';
-import { L } from '@angular/cdk/keycodes';
 
 class DeviceExt extends Device {
   processing: boolean = false;
@@ -49,15 +48,18 @@ export class DevicesComponent {
   updating = false;
   editWeightScaleForm: FormGroup;
   editWeightScale = false;
+  addWeightScale = false;
   editFlowMonitor = false;
   selectedDevice!: DeviceExt;
+  me: UserInfo | null = null;
 
   allowedLiquidUnits = ["ml", "l", "gal"];
   allowedMassUnits = ["g", "oz", "lb"];
 
   devices: DeviceExt[] = [];
 
-  displayedColumns = ["status", "type", "name", "remaining", "measurements", "actions"]
+  adminDisplayColumns = ["status", "type", "name", "remaining", "measurements", "actions"]
+  displayedColumns = ["status", "type", "name", "remaining", "measurements"]
 
   isMobile = false;
 
@@ -68,8 +70,10 @@ export class DevicesComponent {
       emptyKegWeightUnit: ['', Validators.required],
       startVolume: ['', Validators.required],
       startVolumeUnit: ['', Validators.required],
-      displayVolumeUnit: ['', Validators.required]
-      // Add more form controls as needed
+      displayVolumeUnit: ['', Validators.required],
+      chipType: this.fb.control<string|null>('', Validators.required),
+      chipId: this.fb.control<string|null>('', Validators.required),
+      deviceType: ['']
     });
     this.isMobile = deviceService.isMobile();
   }
@@ -85,33 +89,57 @@ export class DevicesComponent {
 
   reload(always?:Function, next?: Function, error?: Function) {
     this.loading = true;
-    this.dataService.getDevices().subscribe({
-      next: (devices: Device[]) => {
-        this.devices = [];
-        for(let i in devices) {
-          this.devices.push(new DeviceExt(devices[i]));
+    this.dataService.getCurrentUser().subscribe({
+      next: (me: UserInfo) => {
+        if(isNilOrEmpty(me) || isNilOrEmpty(me.id)) {
+          this.displayError("No user data returned for currently logged in user, redirecting to login screen");
+          goto("login");
+        } else {
+          this.me = me;
+          this.dataService.getDevices().subscribe({
+            next: (devices: Device[]) => {
+              this.devices = [];
+              for(let i in devices) {
+                this.devices.push(new DeviceExt(devices[i]));
+              }
+            },
+            error: (err: DataError) => {
+              this.displayError(err.message);
+              this.loading = false;
+              if(!_.isNil(error)){
+                error();
+              }
+              if(!_.isNil(always)){
+                always();
+              }
+            },
+            complete: () => {
+              this.loading = false;
+              if(!_.isNil(next)){
+                next();
+              }
+              if(!_.isNil(always)){
+                always();
+              }
+            }
+          });
         }
       },
       error: (err: DataError) => {
         this.displayError(err.message);
-        this.loading = false;
-        if(!_.isNil(error)){
-          error();
-        }
-        if(!_.isNil(always)){
-          always();
-        }
-      },
-      complete: () => {
-        this.loading = false;
-        if(!_.isNil(next)){
-          next();
-        }
-        if(!_.isNil(always)){
-          always();
+        if (err.statusCode === 401) {
+          goto("login");
+        } else {
+          this.loading = false;
         }
       }
     });
+  }
+
+  addWeightScaleDevice(): void {
+    this.selectedDevice = new DeviceExt();
+    this.editWeightScaleForm.patchValue({chipType: "Particle", deviceType: "weight"});
+    this.addWeightScale = true;
   }
 
   editDevice(dev: Device): void {
@@ -142,6 +170,14 @@ export class DevicesComponent {
       data["name"] = this.editWeightScaleForm.value.name;
     }
 
+    if(this.editWeightScaleForm.value.chipType != this.selectedDevice.chipType) {
+      data["chipType"] = this.editWeightScaleForm.value.chipType;
+    }
+
+    if(this.editWeightScaleForm.value.chipId != this.selectedDevice.chipId) {
+      data["chipId"] = this.editWeightScaleForm.value.chipId;
+    }
+
     if(this.editWeightScaleForm.value.emptyKegWeight != this.selectedDevice.emptyKegWeight) {
       data["emptyKegWeight"] = this.editWeightScaleForm.value.emptyKegWeight;
     }
@@ -170,20 +206,34 @@ export class DevicesComponent {
   }
 
   onEditWeightScaleSubmit(): void {
-    let changes = this.editWeightScaleChanges();
-    if (this.editWeightScaleForm.valid && !isNilOrEmpty(changes)) {
+    if (this.editWeightScaleForm.valid) {
       this.updating = true;
-      console.log(changes);
-      this.dataService.updateDevice(this.selectedDevice.id, changes).subscribe({
-        next: (res: any) => {
-          this.reload(undefined, () => {this.cancelEditWeightScale();});
-          this.updating = false;
-        },
-        error: (err: DataError) => {
-          this.displayError(err.message);
-          this.updating = false;
+      if(this.addWeightScale) {
+        this.dataService.createDevice(this.editWeightScaleForm.value).subscribe({
+          next: (res: any) => {
+            this.reload(undefined, () => {this.cancelEditWeightScale();});
+            this.updating = false;
+          },
+          error: (err: DataError) => {
+            this.displayError(err.message);
+            this.updating = false;
+          }
+        });
+      } else {
+        let changes = this.editWeightScaleChanges();
+        if (!isNilOrEmpty(changes)) {
+          this.dataService.updateDevice(this.selectedDevice.id, changes).subscribe({
+            next: (res: any) => {
+              this.reload(undefined, () => {this.cancelEditWeightScale();});
+              this.updating = false;
+            },
+            error: (err: DataError) => {
+              this.displayError(err.message);
+              this.updating = false;
+            }
+          });
         }
-      });
+      }
     }
   }
 
@@ -193,7 +243,21 @@ export class DevicesComponent {
     }
     this.editWeightScaleForm.reset();
     this.editWeightScale = false;
+    this.addWeightScale = false;
     this.selectedDevice = new DeviceExt();
+  }
+
+  deleteDevice(dev: Device) {
+    if(confirm(`Are you sure you want to delete device '${dev.name}'?`)) {
+      this.dataService.deleteDevice(dev.id).subscribe({
+        next: (res: any) => {
+          this.reload();
+        },
+        error: (err: DataError) => {
+          this.displayError(err.message);
+        }
+      });
+    }
   }
 
   enableMaintenanceMode(d: DeviceExt): void {
@@ -328,6 +392,14 @@ export class DevicesComponent {
         });
       }
     });
+  }
+
+  get isAdmin(): boolean {
+    if (_.isNull(this.me) || isNilOrEmpty(this.me?.id)) {
+      return false;
+    }
+    
+    return this.me.admin;
   }
 }
 

@@ -1,7 +1,6 @@
 import logging
 import re
 from contextlib import contextmanager
-from functools import wraps
 from urllib.parse import quote
 
 from psycopg2.errors import InvalidTextRepresentation, NotNullViolation, UniqueViolation  # pylint: disable=no-name-in-module
@@ -21,7 +20,7 @@ from lib import json
 
 Base = declarative_base()
 
-__all__ = ["devices", "device_measurements"]
+__all__ = ["devices", "device_measurements", "users", "service_accounts"]
 
 
 LOGGER = logging.getLogger(__name__)

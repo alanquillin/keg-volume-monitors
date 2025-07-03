@@ -3,11 +3,11 @@ from db.devices import Devices as DevicesDB
 from db.device_measurements import DeviceMeasurements as DevicesMeasurementsDB
 
 from lib.time import utcfromtimestamp_aware
-from resources import AsyncBaseResource
+from resources import AsyncBaseResource, async_login_required, SWAGGER_AUTHORIZATIONS
 
 from flask_restx import Namespace, fields
 
-api = Namespace('devices_status', description='Device status update')
+api = Namespace('devices_status', description='Device status update', authorizations=SWAGGER_AUTHORIZATIONS)
 
 device_status_mod = api.model("DeviceStatus", {
         "state": fields.Integer(required=True, description=""),
@@ -23,9 +23,10 @@ class DeviceStatus(AsyncBaseResource):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
     
-    @api.doc('device_status')
+    @api.doc('device_status', security=["apiKey"])
     @api.expect(device_status_mod, validate=True)
-    async def post(self, id):
+    @async_login_required(allow_service_account=False, require_admin=True)
+    async def post(self, id, *args, current_user=None, **kwargs):
         with session_scope(self.config) as db_session:
             dev = DevicesDB.get_with_measurement_stats(db_session, id)
             if not dev:

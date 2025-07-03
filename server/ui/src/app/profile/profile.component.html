@@ -1,0 +1,124 @@
+
+@if (userInfo && !editing && !changePassword) {
+<div class="view-profile">
+    <div class="title"><p>{{ name }}</p></div>
+    @if (userInfo.profilePic) {
+    <div class="profile-pic">
+        <img src="{{ userInfo.profilePic }}" />
+    </div>
+    }
+    <div class="profile-details">
+        <p>Email: {{ userInfo.email }}</p>
+    </div>
+    @if (!isNilOrEmpty(userInfo.apiKey)) {
+    <div class="api-key">
+        API Key: {{ userInfo.apiKey }} 
+        <button matSuffix mat-icon-button aria-label="Regenerate API Key" (click)="generateAPIKey()" [disabled]="processing"><mat-icon>refresh</mat-icon></button>
+        <button matSuffix mat-icon-button aria-label="Delete API Key" (click)="deleteAPIKey()" [disabled]="processing"><mat-icon>delete</mat-icon></button>
+    </div>
+    }
+    <div class="profile-actions">
+        <button mat-raised-button (click)="startEditing()" [disabled]="processing"><mat-icon>edit</mat-icon> Edit</button>
+        <button mat-raised-button (click)="startChangePassword()" [disabled]="processing">{{ userInfo.passwordEnabled ? "Change" : "Set" }} Password</button>
+        @if (isNilOrEmpty(userInfo.apiKey)) {
+        <button mat-raised-button (click)="generateAPIKey()" [disabled]="processing">Generate API Key</button>
+        }
+    </div>
+</div>
+}
+@if (userInfo && editing) {
+<div class="edit-profile">
+    <form [formGroup]="editFormGroup" (ngSubmit)="save()">
+        <div class="heading"><p>Edit Profile</p></div>
+        <div class="edit-form">
+            <mat-form-field appearance="outline">
+                <mat-label for="name">Email:</mat-label>
+                <input matInput type="text" id="email" formControlName="email">
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+                <mat-label for="firstName">First Name:</mat-label>
+                <input matInput type="text" id="firstName" formControlName="firstName">
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+                <mat-label for="lastName">Last Name:</mat-label>
+                <input matInput type="text" id="lastName" formControlName="lastName">
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+                <mat-label for="profilePic">Profile Picture URL:</mat-label>
+                <input matInput type="text" id="profilePic" formControlName="profilePic">
+            </mat-form-field>
+        </div>
+    
+        <div class="profile-actions">
+            @if (processing) {
+                <mat-spinner></mat-spinner>
+            }
+            <button mat-flat-button type="submit" [disabled]="!editFormGroup.valid || !editFormHasChanges() || processing">Save</button>
+            <button mat-stroked-button [disabled]="processing" (click)="cancelEditing()">Cancel</button>
+            @if (userInfo.passwordEnabled) {
+            <button mat-raised-button (click)="disablePassword()">Disable Password</button>
+            }
+        </div>
+    </form>
+</div>
+}
+@if (userInfo && changePassword) {
+<div class="change-password">
+    <form [formGroup]="changePasswordFormGroup" (ngSubmit)="savePassword()">
+        <div class="heading"><p>Change Password</p></div>
+        <div class="change-password-form">
+            <mat-form-field appearance="outline">
+                <mat-label for="password">Password:</mat-label>
+                <input matInput type="{{ showPassword ? 'text' : 'password' }}" id="password" formControlName="password">
+                <button matIconButton matSuffix (click)="toggleShowPassword()" matTooltip="{{showPassword ? 'hide password': 'show password'}}">
+                    @if (showPassword) {
+                    <mat-icon>visibility_off</mat-icon>
+                    } @else {
+                    <mat-icon>visibility</mat-icon>
+                    }
+                </button>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+                <mat-label for="confirmPassword">Confirm Password:</mat-label>
+                <input matInput type="{{ showConfirmPassword ? 'text' : 'password' }}" id="confirmPassword" formControlName="confirmPassword">
+                <button matIconButton matSuffix (click)="toggleShowConfirmPassword()" matTooltip="{{showConfirmPassword ? 'hide password': 'show password'}}">
+                    @if (showConfirmPassword) {
+                    <mat-icon>visibility_off</mat-icon>
+                    } @else {
+                    <mat-icon>visibility</mat-icon>
+                    }
+                </button>
+            </mat-form-field>
+            @if (changePasswordFormGroup.get('password')?.touched && changePasswordFormGroup.get('password')?.hasError('required')){
+            <div class="error-message">
+                Password is required.
+            </div>
+            }
+            @if (changePasswordFormGroup.get('password')?.touched && changePasswordFormGroup.get('password')?.hasError('minlength')) {
+            <div class="error-message">
+                Password must be at least 10 characters.
+            </div>
+            }
+            @if (changePasswordFormGroup.get('password')?.touched && changePasswordFormGroup.get('password')?.hasError('pattern')) {
+            <div class="error-message">
+                Password must have at least 1 number, 1 symbol and 1 uppercase letter
+            </div>
+            }
+        </div>
+        <div class="profile-actions">
+            @if (processing) {
+                <mat-spinner></mat-spinner>
+            }
+            @if (changePasswordFormGroup.hasError('matching') && changePasswordFormGroup.get('confirmPassword')?.touched) {
+                <div class="error-message">
+                    Passwords do not match
+                </div>
+            }
+            <button mat-raised-button [disabled]="!changePasswordFormGroup.valid || processing">
+                <mat-icon>save</mat-icon> Save
+            </button>
+            <button mat-raised-button (click)="cancelChangePassword()" [disabled]="processing"><mat-icon>cancel</mat-icon> Cancel</button>
+        </div>
+    </form>
+</div>
+}

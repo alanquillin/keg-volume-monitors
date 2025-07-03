@@ -1,12 +1,17 @@
+from functools import wraps
 from datetime import datetime
 import uuid
+import inspect
 
 from lib.config import Config
 from lib import logging
 from lib.util import snake_to_camel
 
-from flask import request
+from flask import current_app, request, redirect
+from flask_login import current_user
+from flask_login.config import EXEMPT_METHODS
 from flask_restx import Resource
+from flask_restx.errors import abort
 
 DEVICE_STATE_MAP = {
     1: "ready",
@@ -14,6 +19,17 @@ DEVICE_STATE_MAP = {
     10: "calibration_mode_enabled",
     11: "calibrating",
     99: "maintenance_mode_enabled"
+}
+
+STATIC_URL_PATH = "static"
+API_PREFIX = "/api/v1"
+
+SWAGGER_AUTHORIZATIONS = {
+    "apiKey": {
+        "type": "apiKey",
+        "in": "query",
+        "name": "api_key"
+    }
 }
 
 class BaseResource(Resource):
@@ -79,4 +95,42 @@ class AsyncBaseResource(BaseResource):
         # Get the method from the class
         method = getattr(self, method_name)
         # Call the method and await its result
-        return await method(*args, **kwargs)
+
+        if inspect.iscoroutinefunction(method):
+            return await method(*args, **kwargs)
+        else:
+            return method(*args, **kwargs)
+
+def async_login_required(allow_device=True, allow_service_account=True, require_admin=False, allow_callback=False):
+    def dec(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            is_authenticated = False
+            if inspect.iscoroutine(current_user):
+                cu = await current_user
+            else:
+                cu = current_user
+
+            if cu:
+                is_authenticated = cu.is_authenticated
+            
+            if not is_authenticated:
+                if allow_callback:
+                    return await current_app.login_manager.unauthorized()
+                else:
+                    abort(401)
+
+            if require_admin and (not cu.admin and not cu.admin):
+                if allow_callback:
+                    return redirect("/forbidden")
+                abort(403, "you are not authorized to execute admin actions")
+
+            if cu.device and not allow_device:
+                abort(403, "devices are not allowed")   
+
+            if cu.service_account and not allow_service_account:
+                abort(403, "service accounts are not allowed")           
+
+            return await func(*args, current_user=cu, **kwargs)
+        return wrapper
+    return dec

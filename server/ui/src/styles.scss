@@ -1,4 +1,68 @@
-/* You can add global styles to this file, and also import other style files */
-
 html, body { height: 100%; }
-body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
+body { 
+    margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif !important; 
+}
+
+* {
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    box-sizing: border-box;
+}
+
+//body {}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+label {
+    color: #34495e;
+}
+
+.header {
+    padding: 1em;
+    text-align: center;
+    box-shadow: 0 1px 1px rgba(0,0,0, 0.10);
+    background: #2d3e50;
+    width: 100%;
+    vertical-align: middle;
+}
+
+.header .header-content a.title{
+    color: white;
+    text-decoration: none;
+    text-transform: uppercase;
+    display: inline-block;
+    font-weight: 400;
+    font-size: 120%;
+}
+
+.content {
+    padding: 1em 1em 3em;
+}
+
+.heading {
+    font-size: 140%;
+    display: block;
+}
+
+.heading button {
+    margin: 0px 4px;
+}
+
+.footer {
+    padding: 1em;
+    background: #111;
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+}
+
+div.title {
+    p {
+        font-size: 140%;
+        font-weight: bold;
+    }
+}

@@ -1,4 +1,4 @@
-"""create-migration
+"""Initial migration
 
 Revision ID: e80d4dea2859
 Revises: 

@@ -68,6 +68,9 @@ simplejson = "^3.20.1"
 requests = "^2.32.3"
 aiohttp = "^3.12.2"
 aiohttp-wsgi = "^0.10.0"
+argon2-cffi = "^23.1.0"
+oauthlib = "^3.2.2"
+Flask-Login = "^0.6.3"
 
 [tool.poetry.dev-dependencies]
 bandit = "^1.6.2"

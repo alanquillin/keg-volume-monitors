@@ -4,12 +4,15 @@ import { inject, Inject, Injectable, InjectionToken, EventEmitter } from '@angul
 
 import { Observable, throwError, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
-import { HttpClient } from  '@angular/common/http';
+import { HttpClient, HttpHeaders } from  '@angular/common/http';
 
 import { WINDOW } from '../window.provider';
 import { isNilOrEmpty } from '../utils/helpers';
-import { Device } from '../models';
+import { Device, UserInfo } from '../models';
 
+const httpOptions = {
+  headers: new HttpHeaders({ 'Content-Type': 'application/json' })
+};
 export class DataError extends Error {
   statusCode!: number;
   statusText!: string;
@@ -92,7 +95,19 @@ export class DataService {
   updateDevice(id: string, data:any): Observable<Device> {
     const url: string = `${this.apiBaseUrl}/devices/${id}`;
 
-    return this.http.patch<Device>(url, data).pipe(catchError((err) => {return this.getError(err)}));
+    return this.http.patch<Device>(url, data, httpOptions).pipe(catchError((err) => {return this.getError(err)}));
+  }
+
+  createDevice(data:any): Observable<Device> {
+    const url: string = `${this.apiBaseUrl}/devices`;
+
+    return this.http.post<Device>(url, data, httpOptions).pipe(catchError((err) => {return this.getError(err)}));
+  }
+
+  deleteDevice(id: string): Observable<Device> {
+    const url: string = `${this.apiBaseUrl}/devices/${id}`;
+
+    return this.http.delete<Device>(url, httpOptions).pipe(catchError((err) => {return this.getError(err)}));
   }
 
   enableMaintenanceMode(id: string): Observable<Device> {
@@ -117,6 +132,51 @@ export class DataService {
 
   rpc(id: string, func:string, data:any): Observable<Device> {
     const url: string = `${this.apiBaseUrl}/devices/${id}/rpc/${func}`;
-    return this.http.post<Device>(url, data).pipe(catchError((err) => {return this.getError(err)}));
+    return this.http.post<Device>(url, data, httpOptions).pipe(catchError((err) => {return this.getError(err)}));
+  }
+
+  login(email: string, password: string): Observable<any>{
+    const url = `${this.apiBaseUrl}/auth/login`;
+    return this.http.post<any>(url, {email, password}, httpOptions).pipe(catchError((err: any) => this.getError(err)));
+  }
+
+  getCurrentUser(): Observable<UserInfo> {
+    const url = `${this.apiBaseUrl}/users/me`;
+    return this.http.get<UserInfo>(url).pipe(catchError((err) => {return this.getError(err)}));
+  }
+
+  getUsers(): Observable<UserInfo[]> {
+    const url = `${this.apiBaseUrl}/users`;
+    return this.http.get<UserInfo[]>(url).pipe(catchError((err) => {return this.getError(err)}));
+  }
+
+  getUser(id: String): Observable<UserInfo> {
+    const url = `${this.apiBaseUrl}/users/${id}`;
+    return this.http.get<UserInfo>(url).pipe(catchError((err) => {return this.getError(err)}));
+  }
+
+  createUser(data: any): Observable<UserInfo> {
+    const url = `${this.apiBaseUrl}/users`;
+    return this.http.post<UserInfo>(url, data).pipe(catchError((err) => {return this.getError(err)}));
+  }
+
+  updateUser(id: String, data: any): Observable<UserInfo> {
+    const url = `${this.apiBaseUrl}/users/${id}`;
+    return this.http.patch<UserInfo>(url, data).pipe(catchError((err) => {return this.getError(err)}));
+  }
+
+  deleteUser(id: String): Observable<UserInfo> {
+    const url = `${this.apiBaseUrl}/users/${id}`;
+    return this.http.delete<UserInfo>(url).pipe(catchError((err) => {return this.getError(err)}));
+  }
+
+  generateUserAPIKey(userId: string): Observable<string> {
+    const url = `${this.apiBaseUrl}/users/${userId}/api_key?regen=true`;
+    return this.http.post<string>(url, {}).pipe(catchError((err) => {return this.getError(err)}));
+  }
+
+  deleteUserAPIKey(userId: string): Observable<any> {
+    const url = `${this.apiBaseUrl}/users/${userId}/api_key`;
+    return this.http.delete<any>(url, {}).pipe(catchError((err) => {return this.getError(err)}));
   }
 }

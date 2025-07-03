@@ -29,15 +29,16 @@
     const int HX711_SCK_PIN = D18;
     const int BTN_PIN = A0;
     const int RED_PIN = D13;
-    const int GREEN_PIN = D14;
+    const int GREEN_PIN = D14;  
     const int BLUE_PIN = D16;
 
-    const String CHIP_MODEL = "Photon2";
+    const String CHIP_MODEL = "Photon2 / P2";
 #endif
 
 const String HOSTNAME = "192.168.122.143";
-const int PORT = 8000;
+const int PORT = 8001;
 const bool SERVICE_ENABLED = true;
+const String API_KEY = "fakekey";
 
 const float DIFF_THRESHOLD = .01;
 
@@ -51,5 +52,6 @@ const float DEFAULT_EMPTY_KEG_W = 4000.0;
 const bool ALLOW_LOW_WEIGHT_CALIBRATION = true;
 
 const int STATUS_UPDATE_PERIOD_MS = 600000;
+const int WIFI_MON_PERIOD_MS = 120000;
 
 #endif
