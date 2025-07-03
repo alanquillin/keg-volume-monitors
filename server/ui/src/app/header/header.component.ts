@@ -2,13 +2,13 @@ import { Component, inject } from '@angular/core';
 import { DataService, DataError } from '../_services/data.service';
 import { UserInfo } from '../models';
 
-import {MatButtonModule} from '@angular/material/button';
-import {MatIconModule} from '@angular/material/icon';
-import {MatMenuModule} from '@angular/material/menu';
-import {MatSnackBar} from '@angular/material/snack-bar';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatSnackBar } from '@angular/material/snack-bar';
 
 import * as _ from 'lodash';
-import { isNilOrEmpty } from '../utils/helpers';
+import { isNilOrEmpty, goto } from '../utils/helpers';
 
 @Component({
   selector: 'app-header',
@@ -18,6 +18,7 @@ import { isNilOrEmpty } from '../utils/helpers';
 })
 export class HeaderComponent {
   private _snackBar = inject(MatSnackBar);
+  goto = goto;
   userInfo! : UserInfo; 
   
   constructor(private dataService: DataService){}
@@ -40,11 +41,7 @@ export class HeaderComponent {
   }
 
   logout() {
-    this.goto('auth/logout');
-  }
-
-  goto(path: string): void {
-    window.location.href = `/${path}`;
+    goto('auth/logout');
   }
 
   get name(): string {

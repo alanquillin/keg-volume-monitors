@@ -7,7 +7,7 @@ from lib.config import Config
 from lib import logging
 from lib.util import snake_to_camel
 
-from flask import current_app, request
+from flask import current_app, request, redirect
 from flask_login import current_user
 from flask_login.config import EXEMPT_METHODS
 from flask_restx import Resource
@@ -121,13 +121,15 @@ def async_login_required(allow_device=True, allow_service_account=True, require_
                     abort(401)
 
             if require_admin and (not cu.admin and not cu.admin):
-                abort(401, "you are not authorized to execute admin actions")
+                if allow_callback:
+                    return redirect("/forbidden")
+                abort(403, "you are not authorized to execute admin actions")
 
             if cu.device and not allow_device:
-                abort(401, "devices are not allowed")   
+                abort(403, "devices are not allowed")   
 
             if cu.service_account and not allow_service_account:
-                abort(401, "service accounts are not allowed")           
+                abort(403, "service accounts are not allowed")           
 
             return await func(*args, current_user=cu, **kwargs)
         return wrapper

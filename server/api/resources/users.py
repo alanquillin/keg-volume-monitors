@@ -125,7 +125,7 @@ class User(UserResource):
         user_c = current_user
         data = api.payload
 
-        if "password" in data and user_c.id != user_id:
+        if "password" in data and user_c.id != user_id and not user_c.admin:
             api.abort(400, "You are not authorized to change the password for another user.")
 
         with session_scope(self.config) as db_session:

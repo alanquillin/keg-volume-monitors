@@ -2,7 +2,7 @@ import { Component, inject, model, signal } from '@angular/core';
 import { DataService, DataError } from '../_services/data.service';
 import { UserInfo } from '../models';
 import { FormGroup, FormBuilder, Validators, ReactiveFormsModule, FormsModule } from '@angular/forms';
-import { isNilOrEmpty } from '../utils/helpers'
+import { isNilOrEmpty, goto } from '../utils/helpers'
 import { Validation } from '../utils/form-validators'
 import * as _ from "lodash";
 
@@ -44,6 +44,7 @@ export class UsersComponent {
   changePassword = false;
   showPassword = false;
   showConfirmPassword = false;
+  me: UserInfo | null = null;
 
   users: UserInfoExt[] = [];
   
@@ -75,30 +76,48 @@ export class UsersComponent {
 
   reload(always?:Function, next?: Function, error?: Function) {
     this.loading = true;
-    this.dataService.getUsers().subscribe({
-      next: (users: UserInfo[]) => {
-        this.users = [];
-        for(let i in users) {
-          this.users.push(new UserInfoExt(users[i]));
+    this.dataService.getCurrentUser().subscribe({
+      next: (me: UserInfo) => {
+        if(isNilOrEmpty(me) || isNilOrEmpty(me.id)) {
+          this.displayError("No user data returned for currently logged in user, redirecting to login screen");
+          goto("login");
+        } else {
+          this.me = me;
+          this.dataService.getUsers().subscribe({
+            next: (users: UserInfo[]) => {
+              this.users = [];
+              for(let i in users) {
+                this.users.push(new UserInfoExt(users[i]));
+              }
+            },
+            error: (err: DataError) => {
+              this.displayError(err.message);
+              this.loading = false;
+              if(!_.isNil(error)){
+                error();
+              }
+              if(!_.isNil(always)){
+                always();
+              }
+            },
+            complete: () => {
+              this.loading = false;
+              if(!_.isNil(next)){
+                next();
+              }
+              if(!_.isNil(always)){
+                always();
+              }
+            }
+          });
         }
-      },
+      }, 
       error: (err: DataError) => {
         this.displayError(err.message);
-        this.loading = false;
-        if(!_.isNil(error)){
-          error();
-        }
-        if(!_.isNil(always)){
-          always();
-        }
-      },
-      complete: () => {
-        this.loading = false;
-        if(!_.isNil(next)){
-          next();
-        }
-        if(!_.isNil(always)){
-          always();
+        if (err.statusCode === 401) {
+          goto("login");
+        } else {
+          this.loading = false;
         }
       }
     });
@@ -199,6 +218,10 @@ export class UsersComponent {
   }
 
   deleteUser(user: UserInfo) {
+    if(user.id === this.me?.id) {
+      this.displayError("You cannot delete yourself");
+      return;
+    }
     if(confirm(`Are you sure you want to delete user '${user.email}'?`)) {
       this.dataService.deleteUser(user.id).subscribe({
         next: (res: any) => {
@@ -227,11 +250,7 @@ export class UsersComponent {
     this.changePasswordFormGroup.reset();
   }
 
-  savePassword(): void {
-    if (this.changePasswordFormGroup.invalid) {
-      return;
-    }
-    
+  _savePassword(): void {
     this.selectedUser.processing = true;
     this.dataService.updateUser(this.selectedUser.id, {password: this.changePasswordFormGroup.value.password}).subscribe({
       next: (data: UserInfo) => {
@@ -243,6 +262,20 @@ export class UsersComponent {
         this.selectedUser.processing = false;
       }
     });
+  }
+
+  savePassword(): void {
+    if (this.changePasswordFormGroup.invalid) {
+      return;
+    }
+    
+    if(this.selectedUser.id !== this.me?.id) {
+      if(confirm(`Are you sure you want to reset the password user ${this.selectedUser.email}`)) {
+        this._savePassword();
+      }
+    } else {
+      this._savePassword();
+    }
   }
 
   disablePassword(): void {

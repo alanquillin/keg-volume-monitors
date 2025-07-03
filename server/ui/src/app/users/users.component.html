@@ -2,6 +2,8 @@
 <h1>Edit User: ({{selectedUser.email}})</h1>
 } @else if (addingUser) {
 <h1>Add New User</h1>
+} @else if (changePassword) {
+<h1>Change Password</h1>
 } @else {
 <h1>Users <button mat-mini-fab aria-label="device actions" (click)="reload()"><mat-icon>refresh</mat-icon></button></h1>
 }
@@ -32,7 +34,9 @@
             <mat-label for="profilePic">Profile Pic Url:</mat-label>
             <input matInput type="text" id="profilePic" formControlName="profilePic">
         </mat-form-field>
+        @if (me?.id !== selectedUser.id) {
         <mat-checkbox formControlName="admin">Admin?</mat-checkbox>
+        }
     </div>
     <div>
         @if (updating) {
@@ -45,7 +49,6 @@
 } @else if (changePassword) {
 <div class="change-password">
     <form [formGroup]="changePasswordFormGroup" (ngSubmit)="savePassword()">
-        <div class="heading"><p>Change Password</p></div>
         <div class="change-password-form">
             <mat-form-field appearance="outline">
                 <mat-label for="password">Password:</mat-label>
@@ -124,13 +127,14 @@
         <ng-container matColumnDef="apiKey">
           <th mat-header-cell *matHeaderCellDef> API Key </th>
           <td mat-cell *matCellDef="let u">
+            @if (!isNilOrEmpty(u.apiKey)) {
             @if (u.showApiKey) {
             {{ u.apiKey }}
             }
-            <button matButton="outlined" (click)="toggleApiKeyVisibility(u)">
+            <button mat-mini-fab (click)="toggleApiKeyVisibility(u)">
                 <mat-icon>{{ u.showApiKey ? 'visibility_off' : 'visibility' }}</mat-icon>
-                {{ u.showApiKey ? 'Hide' : 'Show'}}
             </button>
+            }
           </td>
         </ng-container>
 
@@ -161,7 +165,7 @@
                 <button mat-mini-fab aria-label="Edit device" (click)="editUser(u)">
                     <mat-icon>edit</mat-icon>
                 </button> 
-                <button mat-mini-fab aria-label="Delete device" (click)="deleteUser(u)">
+                <button mat-mini-fab aria-label="Delete device" (click)="deleteUser(u)" [disabled]="me?.id === u.id">
                     <mat-icon>delete</mat-icon>
                 </button> 
                 <button mat-mini-fab [matMenuTriggerFor]="menu" aria-label="device actions">

@@ -19,16 +19,19 @@ export class AppComponent {
   title = 'Keg Volume Monitors';
   hideHeader = false;
   routeData: any;
+  restricted = true;
 
-  constructor(private route: ActivatedRoute, private configService: ConfigService, private router: Router){}
+  constructor(private dataService: DataService, private route: ActivatedRoute, private configService: ConfigService, private router: Router){}
 
   setConfig(data: any): void {
     console.log(data);
     this.title = _.get(data, "title", 'brewhouse-manager');
     this.hideHeader = toBoolean(_.get(data, "hideHeader", false));
+    this.restricted = toBoolean(_.get(data, "access.restricted", true));
   }
 
   ngOnInit(): void {
+    let that = this;
     this.router.events.pipe(
       filter(event => event instanceof NavigationEnd),
       map(() => this.rootRoute(this.route)),
@@ -36,6 +39,13 @@ export class AppComponent {
       mergeMap((route: ActivatedRoute) => route.data)
     ).subscribe((event: {[name: string]: any}) => {
       this.setConfig(event);
+
+      this.dataService.unauthorized.subscribe((err: DataError) => {
+        console.log(`restricted: ${this.restricted}`);
+        if (this.restricted) {
+          window.location.href = "/login";
+        }
+      })
     });
   }
 

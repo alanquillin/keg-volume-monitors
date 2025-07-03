@@ -1,8 +1,8 @@
 import { Component, inject, model, signal } from '@angular/core';
 import { DataService, DataError } from '../_services/data.service';
-import { Device, DeviceState } from '../models';
+import { Device, DeviceState, UserInfo } from '../models';
 import { FormGroup, FormBuilder, Validators, ReactiveFormsModule, FormsModule } from '@angular/forms';
-import { isNilOrEmpty } from '../utils/helpers'
+import { isNilOrEmpty, goto } from '../utils/helpers'
 import * as _ from "lodash";
 import { DeviceDetectorService } from 'ngx-device-detector';
 
@@ -51,13 +51,15 @@ export class DevicesComponent {
   addWeightScale = false;
   editFlowMonitor = false;
   selectedDevice!: DeviceExt;
+  me: UserInfo | null = null;
 
   allowedLiquidUnits = ["ml", "l", "gal"];
   allowedMassUnits = ["g", "oz", "lb"];
 
   devices: DeviceExt[] = [];
 
-  displayedColumns = ["status", "type", "name", "remaining", "measurements", "actions"]
+  adminDisplayColumns = ["status", "type", "name", "remaining", "measurements", "actions"]
+  displayedColumns = ["status", "type", "name", "remaining", "measurements"]
 
   isMobile = false;
 
@@ -87,30 +89,48 @@ export class DevicesComponent {
 
   reload(always?:Function, next?: Function, error?: Function) {
     this.loading = true;
-    this.dataService.getDevices().subscribe({
-      next: (devices: Device[]) => {
-        this.devices = [];
-        for(let i in devices) {
-          this.devices.push(new DeviceExt(devices[i]));
+    this.dataService.getCurrentUser().subscribe({
+      next: (me: UserInfo) => {
+        if(isNilOrEmpty(me) || isNilOrEmpty(me.id)) {
+          this.displayError("No user data returned for currently logged in user, redirecting to login screen");
+          goto("login");
+        } else {
+          this.me = me;
+          this.dataService.getDevices().subscribe({
+            next: (devices: Device[]) => {
+              this.devices = [];
+              for(let i in devices) {
+                this.devices.push(new DeviceExt(devices[i]));
+              }
+            },
+            error: (err: DataError) => {
+              this.displayError(err.message);
+              this.loading = false;
+              if(!_.isNil(error)){
+                error();
+              }
+              if(!_.isNil(always)){
+                always();
+              }
+            },
+            complete: () => {
+              this.loading = false;
+              if(!_.isNil(next)){
+                next();
+              }
+              if(!_.isNil(always)){
+                always();
+              }
+            }
+          });
         }
       },
       error: (err: DataError) => {
         this.displayError(err.message);
-        this.loading = false;
-        if(!_.isNil(error)){
-          error();
-        }
-        if(!_.isNil(always)){
-          always();
-        }
-      },
-      complete: () => {
-        this.loading = false;
-        if(!_.isNil(next)){
-          next();
-        }
-        if(!_.isNil(always)){
-          always();
+        if (err.statusCode === 401) {
+          goto("login");
+        } else {
+          this.loading = false;
         }
       }
     });
@@ -372,6 +392,14 @@ export class DevicesComponent {
         });
       }
     });
+  }
+
+  get isAdmin(): boolean {
+    if (_.isNull(this.me) || isNilOrEmpty(this.me?.id)) {
+      return false;
+    }
+    
+    return this.me.admin;
   }
 }
 
