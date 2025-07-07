@@ -1,4 +1,5 @@
 #include "Particle.h"
+#include "env.h"
 #include "config.h"
 #include <HX711ADC.h>
 #include <math.h>

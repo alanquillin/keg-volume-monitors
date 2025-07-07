@@ -17,9 +17,16 @@ ifeq ("$(wildcard wifi-creds.json)","")
     $(shell touch wifi-creds.json)
 endif
 
+ifeq ("$(wildcard src/env.h)","")
+    $(shell cp env.default src/env.h)
+endif
+
 SSID := $(shell cat wifi-creds.json | jq '.network')
 
-.PHONY: clear-wifi add-wifi join-wifi init-wifi compile flash monitor-local
+.PHONY: clear-wifi add-wifi join-wifi init-wifi compile flash monitor-local init
+
+init:
+	echo "init complete"
 
 clear-wifi:
 	$(PARTICLE) wifi clear

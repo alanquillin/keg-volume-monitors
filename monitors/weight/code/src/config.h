@@ -1,6 +1,7 @@
 #ifndef _KEG_VOL_MON_WEIGHT_CONFIG_
 #define _KEG_VOL_MON_WEIGHT_CONFIG_
 
+#include "env.h"
 #include "Particle.h"
 
 #if (PLATFORM_ID == PLATFORM_PHOTON || PLATFORM_ID == PLATFORM_PHOTON_PRODUCTION)
@@ -35,10 +36,17 @@
     const String CHIP_MODEL = "Photon2 / P2";
 #endif
 
-const String HOSTNAME = "192.168.1.2";
-const int PORT = 8001;
+#ifndef HOSTNAME
+    const String HOSTNAME = "192.168.1.2";
+#endif
+#ifndef PORT
+    const int PORT = 8001;
+#endif
+#ifndef API_KEY
+    const String API_KEY = "SET API KEY HERE";
+#endif
+
 const bool SERVICE_ENABLED = true;
-const String API_KEY = "SET API KEY HERE";
 
 const float DIFF_THRESHOLD = .01;
 
