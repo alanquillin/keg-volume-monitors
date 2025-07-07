@@ -27,6 +27,7 @@ import {
 
 class DeviceExt extends Device {
   processing: boolean = false;
+  showApiKey: boolean = false;
 }
 
 export interface CalibrateDeviceDialogData {
@@ -43,6 +44,7 @@ export class DevicesComponent {
   private _snackBar = inject(MatSnackBar);
   readonly dialog = inject(MatDialog);
   DeviceState = DeviceState; // Make the enum available to the template
+  isNilOrEmpty = isNilOrEmpty;
 
   loading = false;
   updating = false;
@@ -58,7 +60,7 @@ export class DevicesComponent {
 
   devices: DeviceExt[] = [];
 
-  adminDisplayColumns = ["status", "type", "name", "remaining", "measurements", "actions"]
+  adminDisplayColumns = ["status", "type", "name", "remaining", "measurements", "apiKey", "actions"]
   displayedColumns = ["status", "type", "name", "remaining", "measurements"]
 
   isMobile = false;
@@ -400,6 +402,10 @@ export class DevicesComponent {
     }
     
     return this.me.admin;
+  }
+
+  toggleApiKeyVisibility(dev: DeviceExt): void {
+    dev.showApiKey = !dev.showApiKey;
   }
 }
 
