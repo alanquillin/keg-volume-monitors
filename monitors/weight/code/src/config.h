@@ -35,10 +35,10 @@
     const String CHIP_MODEL = "Photon2 / P2";
 #endif
 
-const String HOSTNAME = "192.168.122.143";
+const String HOSTNAME = "192.168.1.2";
 const int PORT = 8001;
 const bool SERVICE_ENABLED = true;
-const String API_KEY = "fakekey";
+const String API_KEY = "SET API KEY HERE";
 
 const float DIFF_THRESHOLD = .01;
 

@@ -140,10 +140,11 @@ http_response_t DataService::_get(String path) {
 
     logger.trace("GET %s://%s:%d%s", _scheme.c_str(), request.hostname.c_str(), request.port, request.path.c_str());
 
+    String auth = String::format("Bearer %s", _bearerToken.c_str());
+
     http_header_t headers[] = {
-        { "Accept" , "application/json" },
-        { "Authorization", String::format("Bearer %s", _bearerToken)},
-        { "Authorization", String::format("Bearer %s", _bearerToken)},
+        { "Accept", "application/json" },
+        { "Authorization", auth },
         { NULL, NULL } // NOTE: Always terminate headers will NULL
     };
     http_client.get(request, response, headers);
@@ -161,10 +162,12 @@ http_response_t DataService::_post(String path, JsonDocument jDoc){
     logger.trace("POST %s://%s:%d%s", _scheme.c_str(), request.hostname.c_str(), request.port, request.path.c_str());
     logger.trace("Data: %s", request.body.c_str());
 
+    String auth = String::format("Bearer %s", _bearerToken.c_str());
+
     http_header_t headers[] = {
         { "Content-Type", "application/json" },
-        { "Accept" , "application/json" },
-        { "Authorization", String::format("Bearer %s", _bearerToken)},
+        { "Accept", "application/json" },
+        { "Authorization", auth },
         { NULL, NULL } // NOTE: Always terminate headers will NULL
     };
     http_client.post(request, response, headers);
@@ -216,9 +219,8 @@ device_data_t DataService::_parseDeviceData(JsonDocument jDoc) {
 }
 
 void DataService::_generateBearerToken(String apiKey){
-    String token = String::format("device|%s", apiKey);
-    size_t bufLen = token.length();
-    uint8_t *buf = new uint8_t[Base64::getMaxDecodedSize(bufLen)];
+    String token = String::format("device|%s", apiKey.c_str());
 
-    _bearerToken = Base64::encodeToString((const uint8_t *)token.c_str(), token.length());  
+    _bearerToken = Base64::encodeToString((const uint8_t *)token.c_str(), token.length());
+    logger.trace("Bearer token %s", _bearerToken.c_str());
 }
