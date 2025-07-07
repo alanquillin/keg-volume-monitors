@@ -36,16 +36,7 @@
     const String CHIP_MODEL = "Photon2 / P2";
 #endif
 
-#ifndef HOSTNAME
-    const String HOSTNAME = "192.168.1.2";
-#endif
-#ifndef PORT
-    const int PORT = 8001;
-#endif
-#ifndef API_KEY
-    const String API_KEY = "SET API KEY HERE";
-#endif
-
+// FOR HOSTNAME, API_KEY and PORT, check the env.h file.
 const bool SERVICE_ENABLED = true;
 
 const float DIFF_THRESHOLD = .01;
