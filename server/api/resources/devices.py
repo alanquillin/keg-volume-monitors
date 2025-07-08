@@ -3,7 +3,7 @@ from time import sleep
 from db import session_scope
 from db.devices import Devices as DevicesDB
 from lib import devices
-from lib.units import convert_from_ml, convert_to_ml
+from lib.units import convert_from_ml, convert_to_ml, convert_to_g, convert_from_g
 from lib.util import calculate_volume_ml_from_weight, obj_keys_camel_to_snake, random_string
 from resources import AsyncBaseResource, DEVICE_STATE_MAP, async_login_required, SWAGGER_AUTHORIZATIONS
 
@@ -40,7 +40,8 @@ device_mod = api.model("Device", {
         "latestMeasurementTakenOn": fields.DateTime(dt_format="iso8601", description=""),
         "percentRemaining": fields.Float(description="The percent volume remaining"),
         "totalVolumeRemaining": fields.Float(description="Total volume remaining"),
-        "online": fields.Boolean(description="")
+        "online": fields.Boolean(description=""),
+        "emptyKegWeightGrams": fields.Float(description="Total volume remaining")
     } | IN_FIELDS)
 
 class DeviceResource(AsyncBaseResource):
@@ -52,8 +53,7 @@ class DeviceResource(AsyncBaseResource):
         unit = dev.get(unit_key, "g")
 
         if unit != "g":
-            #TODO Convert to grams
-            pass
+            value = convert_to_g(value, unit)
 
         return value
     
@@ -106,6 +106,8 @@ class DeviceResource(AsyncBaseResource):
         online = await devices.get(dev.chip_id, "online")
         if online is not None:
             res["online"] = online
+        
+        res["emptyKegWeightGrams"] = convert_to_g(res.get("emptyKegWeight", 0), res.get("emptyKegWeightUnit", "g"))
 
         res["stateStr"] = DEVICE_STATE_MAP.get(dev.state, "unknown")
         return res

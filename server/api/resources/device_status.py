@@ -14,6 +14,7 @@ device_status_mod = api.model("DeviceStatus", {
         "latestMeasurement": fields.Float(required=False, description=""),
         "latestMeasurementUnit": fields.Float(required=False, description=""),
         "latestMeasurementTS": fields.Integer(required=False, description=""),
+        "emptyKegWeightGrams": fields.Integer(required=False, description=""),
     })
             
 @api.route("", "/")
@@ -28,7 +29,8 @@ class DeviceStatus(AsyncBaseResource):
     @async_login_required(allow_service_account=False, allow_device=True, require_admin=True)
     async def post(self, id, *args, current_user=None, **kwargs):
         if current_user.device:
-            if current_user.id != id:
+            if str(current_user.id) != id:
+                self.logger.warning(f"device with ID: {current_user.id} attempted to post status for device Id: {id}, which does not match")
                 api.abort(405, "Devices are not authorized to update the status for another device")
 
         with session_scope(self.config) as db_session:
