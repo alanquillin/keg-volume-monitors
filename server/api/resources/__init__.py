@@ -120,7 +120,7 @@ def async_login_required(allow_device=True, allow_service_account=True, require_
                 else:
                     abort(401)
 
-            if require_admin and (not cu.admin and not cu.admin):
+            if require_admin and (cu.human and not cu.admin):
                 if allow_callback:
                     return redirect("/forbidden")
                 abort(403, "you are not authorized to execute admin actions")
