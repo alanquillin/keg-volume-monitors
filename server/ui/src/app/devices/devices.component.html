@@ -179,7 +179,12 @@
         <ng-container matColumnDef="measurements">
             <th mat-header-cell *matHeaderCellDef> # Measurements </th>
             <td mat-cell *matCellDef="let d"> {{d.measurementCount}} </td>
-          </ng-container>
+        </ng-container>
+
+        <ng-container matColumnDef="chipDetails">
+            <th mat-header-cell *matHeaderCellDef> Chip Details (Manufacturer - Model (Id)) </th>
+            <td mat-cell *matCellDef="let d"> {{d.chipType}} - {{d.chipModel}} ({{d.chipId}}) </td>
+        </ng-container>
 
         <ng-container matColumnDef="apiKey">
           <th mat-header-cell *matHeaderCellDef> API Key </th>

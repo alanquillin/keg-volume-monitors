@@ -60,7 +60,7 @@ export class DevicesComponent {
 
   devices: DeviceExt[] = [];
 
-  adminDisplayColumns = ["status", "type", "name", "remaining", "measurements", "apiKey", "actions"]
+  adminDisplayColumns = ["status", "type", "name", "remaining", "measurements", "chipDetails", "apiKey", "actions"]
   displayedColumns = ["status", "type", "name", "remaining", "measurements"]
 
   isMobile = false;
