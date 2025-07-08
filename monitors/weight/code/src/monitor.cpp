@@ -30,6 +30,7 @@ RGBLED led(RED_PIN, GREEN_PIN, BLUE_PIN);
 DataService dataService(SERVICE_ENABLED, "weight", HOSTNAME, PORT, API_KEY, false);
 device_data_t deviceData = {true};
 
+float EMPTY_KEG_W = DEFAULT_EMPTY_KEG_W;
 float LAST_MEASUREMENT = 0;
 time32_t LAST_MEASUREMENT_TS = 0;
 
@@ -82,6 +83,16 @@ long getCalibrationOffset() {
     return offset;
 }
 
+void storeEmptyKegWeight(float val) {
+    EEPROM.put(8, val);
+}
+
+float getEmptyKegWeight() {
+    float val;
+    EEPROM.get(8, val);
+    return val;
+}
+
 bool sendStatus() {
     if (deviceData.isNull) {
         Log.trace("No device info currently set, attempting to retrieve before sending status");
@@ -95,6 +106,7 @@ bool sendStatus() {
     status.id = deviceData.id;
     status.latestMeasurement = LAST_MEASUREMENT;
     status.latestMeasurementTS = LAST_MEASUREMENT_TS;
+    status.emptyKegWeight = EMPTY_KEG_W;
     
     status.state = _getState(false);
     return dataService.sendStatus(status);
@@ -216,13 +228,13 @@ int calibrateCld(String calWeight_s) {
         return -1;
     }
 
-    if (calWeight < DEFAULT_EMPTY_KEG_W) {
+    if (calWeight < EMPTY_KEG_W) {
         if (!ALLOW_LOW_WEIGHT_CALIBRATION) {
-            Log.error("Calibration failed because the calibration weight was below %.2fg", DEFAULT_EMPTY_KEG_W);
+            Log.error("Calibration failed because the calibration weight was below %.2fg", EMPTY_KEG_W);
             return -2;
         }
 
-        Log.warn("Calibrating with weight lower %.2fg which is less than the empty keg weight: %.2f", calWeight, DEFAULT_EMPTY_KEG_W);
+        Log.warn("Calibrating with weight lower %.2fg which is less than the empty keg weight: %.2f", calWeight, EMPTY_KEG_W);
     }
     
     CALIBRATING = true;
@@ -392,6 +404,25 @@ int getStateCld(String _ = "") {
     return _getState(true);
 }
 
+/**
+ * @brief CLOUD FUNCTION CALLBACK - Set the empty keg weight
+ * 
+ * @param String:emptyKegWeight_s - The string representing the empty keg weight
+ * @return int A value of 1 is return to represent successful data push
+ *          -1 - Unable to parse input value to float
+ */
+int setEmptyKegWeightCld(String emptyKegWeight_s = "") {
+    float emptyKegWeight = emptyKegWeight_s.toFloat();
+    if (emptyKegWeight == 0 && emptyKegWeight_s != "0") {
+        return -1;
+    }
+
+    EMPTY_KEG_W = emptyKegWeight;
+    storeEmptyKegWeight(emptyKegWeight);
+
+    return 1;
+}
+
 bool getSetDeviceData() {
     bool res = dataService.ping();
     if (!res) {
@@ -452,6 +483,7 @@ void setup() {
     Particle.function("startMaintenanceMode", startMaintenanceModeCld);
     Particle.function("stopMaintenanceMode", stopMaintenanceModeCld);
     Particle.function("getState", getStateCld);
+    Particle.function("setEmptyKegWeight", setEmptyKegWeightCld);
     
     Log.trace("Connecting to Particle Cloud");
     Particle.connect();
@@ -462,6 +494,21 @@ void setup() {
     }
 
     getSetDeviceData();
+
+    if (deviceData.isNull) {
+        Log.trace("No deivice data found from service, checking EEPROM for empty keg weight");
+        float emptyKegWeight = getEmptyKegWeight();
+        if (!isnan(emptyKegWeight) && emptyKegWeight > 0.0) {
+            Log.trace("Retrieved empty keg weight from EEPROM: %.2f", emptyKegWeight);
+            EMPTY_KEG_W = emptyKegWeight;
+        } else {
+            Log.warn("No empty keg weight found in EEPROM.  Falling back to default: %.2f", EMPTY_KEG_W);
+        }
+    } else {
+        Log.trace("Retrieved empty keg weight in device data from service: %.2f", deviceData.emptyKegWeight);
+        EMPTY_KEG_W = deviceData.emptyKegWeight;
+        storeEmptyKegWeight(EMPTY_KEG_W);
+    }
 
     float cal = getCalibrationScale();
     long calOffset = getCalibrationOffset();
@@ -545,7 +592,7 @@ void loop() {
         if (!BTN_PRESSED && !TESTING_LEDS && !CALIBRATING && !CALIBRATION_MODE_ENABLED && !MAINTENANCE_MODE) {
             Log.trace("Sample taken: %.2f", units);
                 
-            if (units < DEFAULT_EMPTY_KEG_W) {
+            if (units < EMPTY_KEG_W && LAST_MEASUREMENT < EMPTY_KEG_W) {
                 led.setColor(RGB_WHITE);
             } else {
                 led.setColor(RGB_GREEN);

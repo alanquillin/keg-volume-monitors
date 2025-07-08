@@ -9,6 +9,7 @@ typedef struct {
     bool isNull;
     String id;
     String deviceType;
+    float emptyKegWeight;
 } device_data_t;
 
 typedef struct {
@@ -16,6 +17,7 @@ typedef struct {
     float latestMeasurement;
     long latestMeasurementTS;
     int state;
+    float emptyKegWeight;
 } device_status_t;
 
 class DataService 

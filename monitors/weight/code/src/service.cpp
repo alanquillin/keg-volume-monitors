@@ -122,6 +122,7 @@ bool DataService::sendStatus(device_status_t status){
     jData["latestMeasurement"] =  status.latestMeasurement;
     jData["latestMeasurementTS"] =  status.latestMeasurementTS;
     jData["state"] =  status.state;
+    jData["emptyKegWeightGrams"] = status.emptyKegWeight;
 
     int cnt = 0;
     while(cnt < _maxRetries){
@@ -213,7 +214,8 @@ device_data_t DataService::_parseDeviceData(JsonDocument jDoc) {
         res.isNull = false;
         JsonObject deviceDetails = jDoc.as<JsonObject>();
         res.id = String(deviceDetails["id"].as<const char*>());
-        res.deviceType = String(deviceDetails["deviceType"].as<const char*>());        
+        res.deviceType = String(deviceDetails["deviceType"].as<const char*>());       
+        res.emptyKegWeight = deviceDetails["emptyKegWeightGrams"].as<float>(); 
     }
     return res;
 }
