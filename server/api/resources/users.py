@@ -79,7 +79,7 @@ class Me(UserResource):
             return await self.transform_response(user, remove_keys=remove_keys, current_user=cu)
         
 
-@api.route("/")
+@api.route("", "/")
 class Users(UserResource):
     @api.doc('get_users', security=["apiKey"])
     @api.response(200, 'Success', user_mod)
