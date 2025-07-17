@@ -1,6 +1,6 @@
 # NodeJS base
 # ############################################################
-FROM node:22.14-bookworm AS node-base
+FROM node:22.17-bookworm AS node-base
 
 RUN yarn config set network-timeout 1200000 -g
 RUN yarn global add @angular/cli
@@ -11,7 +11,7 @@ RUN yarn install --non-interactive
 
 # Python base
 # ############################################################
-FROM python:3.11-slim-bookworm AS python-base
+FROM python:3.13-slim-bookworm AS python-base
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends gcc build-essential libpq-dev libffi-dev libssl-dev \
@@ -20,8 +20,7 @@ RUN apt-get update \
 RUN pip install -U pip 
 RUN pip install setuptools wheel
 ENV CRYPTOGRAPHY_DONT_BUILD_RUST=1
-RUN pip install "cryptography<3.5"
-RUN pip install "poetry>=1.8.5"
+RUN pip install poetry
 
 RUN poetry config virtualenvs.in-project true
 COPY pyproject.toml poetry.lock ./
