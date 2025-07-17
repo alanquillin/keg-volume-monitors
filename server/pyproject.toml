@@ -48,7 +48,7 @@ addopts = "--cov api --cov-report term-missing --cov-fail-under 80 --log-level D
 name = "api"
 version = "0.1.0"
 authors = ["Alan Quillin"]
-description = "Keg Volume Monitor"
+description = "Keg Volume Monitors"
 license = "GPL-3.0-or-later"
 
 [tool.poetry.dependencies]
