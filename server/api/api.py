@@ -17,12 +17,13 @@ LOGGER = logging.getLogger(__name__)
 from db import session_scope
 from db.devices import Devices as DevicesDB
 from db.users import Users as UsersDB
-from db.service_accounts import ServiceAccount as ServiceAccountsDB
+from db.service_accounts import ServiceAccounts as ServiceAccountsDB
 from resources import API_PREFIX
 from resources.auth import AuthUser, api as AuthNS, session_urls as AuthSessionUrlsNS
 from resources.devices import api as DevicesNS
 from resources.device_measurements import api as DeviceMeasurementsNS
 from resources.device_status import api as DeviceStatusNS
+from resources.service_accounts import api as ServiceAccountsNS
 from resources.users import api as UsersNS
 from resources.ui import api as UINS
 
@@ -137,6 +138,7 @@ api.add_namespace(DevicesNS, path=f"{API_PREFIX}/devices")
 api.add_namespace(DeviceMeasurementsNS, path=f"{API_PREFIX}/devices/<device_id>/measurements")
 api.add_namespace(DeviceStatusNS, path=f"{API_PREFIX}/devices/<id>/status")
 api.add_namespace(UsersNS, path=f"{API_PREFIX}/users")
+api.add_namespace(ServiceAccountsNS, path=f"{API_PREFIX}/service_accounts")
 
 @api.route(f"{API_PREFIX}/ping")
 class Ping(Resource):

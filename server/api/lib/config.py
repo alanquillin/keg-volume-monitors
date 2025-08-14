@@ -79,13 +79,13 @@ def to_dict(val, *args):
 
 class Config(metaclass=ThreadSafeSingleton):
     defaults = {
-        "db": {"username": "keg_vol_mon_user", "host": "localhost", "port": 5432, "name": "keg_volume_monitor"},
+        "db": {"username": "keg_vol_mon_user", "host": "localhost", "port": 5432, "name": "keg_volume_monitors"},
         "log_level": "",
     }
 
     default_schema = {"db.port": "int", "logging.levels": "dict"}
 
-    key_aliases = {"APP_ID": ["keg-volume-monitor"]}
+    key_aliases = {"APP_ID": ["keg-volume-monitors"]}
     type_conversions = {"int": to_int, "bool": to_bool, "list": to_list, "dict": to_dict}
 
     def __init__(self, **kwargs):

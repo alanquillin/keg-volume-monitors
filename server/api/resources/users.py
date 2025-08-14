@@ -120,13 +120,13 @@ class User(UserResource):
         
     @api.doc('patch_user', security=["apiKey"])
     @api.response(200, 'Success', user_mod)
-    @async_login_required(allow_device=False, allow_service_account=False, require_admin=True)
+    @async_login_required(allow_device=False, allow_service_account=False)
     async def patch(self, user_id, *args, current_user=None, **kwargs):
         user_c = current_user
         data = api.payload
 
-        if "password" in data and user_c.id != user_id and not user_c.admin:
-            api.abort(400, "You are not authorized to change the password for another user.")
+        if user_c.id != user_id and not user_c.admin:
+            api.abort(400, "Only admins can modify user information for another user")
 
         with session_scope(self.config) as db_session:
             user = UsersDB.get_by_pkey(db_session, user_id)

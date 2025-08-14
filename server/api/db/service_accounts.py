@@ -12,7 +12,7 @@ from db import Base, DictifiableMixin, QueryMethodsMixin
 
 LOG = getLogger(__name__)
 
-class ServiceAccount(Base, DictifiableMixin, QueryMethodsMixin):
+class ServiceAccounts(Base, DictifiableMixin, QueryMethodsMixin):
 
     __tablename__ = _TABLE_NAME
 

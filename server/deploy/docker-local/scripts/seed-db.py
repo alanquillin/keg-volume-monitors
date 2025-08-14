@@ -7,11 +7,16 @@ import os
 import sys
 from time import sleep
 
-from db import Base, session_scope, devices, device_measurements
+from db import Base, session_scope, devices, device_measurements, users, service_accounts
 from lib.config import Config
+from lib.util import random_string
 
+from argon2 import PasswordHasher
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.sql import text
+
+
+ph = PasswordHasher()
 
 #from db import Base
 
@@ -170,6 +175,27 @@ MEASUREMENTS = [
     }
 ]
 
+USER_ID_1 = "71c3f365-a083-446d-af71-817081b939db"
+USERS = [
+    {
+        "id": USER_ID_1,
+        "email": "me@fake.email",
+        "first_name": "Fake",
+        "last_name": "Guy",
+        "admin": False,
+        "password_hash": ph.hash("foobar")
+    }
+]
+
+SERVICE_ACCOUNT_ID_1 = "1bacc474-b110-4de2-9b0c-ce342c3629ce"
+SERVICE_ACCOUNTS = [
+    {
+        "id": SERVICE_ACCOUNT_ID_1,
+        "name": "test service account",
+        "api_key": "abctg99FGrDhjn9qD1238Kggc98dLUV"
+    }
+]
+
 def seed_db(db_session, db, items, pk="id"):
     for item in items:
         logger.info(item)
@@ -229,3 +255,5 @@ if __name__ == "__main__":
 
         seed_db(db_session, devices.Devices, DEVICES)
         seed_db(db_session, device_measurements.DeviceMeasurements, MEASUREMENTS)
+        seed_db(db_session, users.Users, USERS)
+        seed_db(db_session, service_accounts.ServiceAccounts, SERVICE_ACCOUNTS)

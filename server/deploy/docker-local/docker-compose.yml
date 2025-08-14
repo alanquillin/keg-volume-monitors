@@ -11,7 +11,7 @@ services:
     depends_on:
       - kvm_web
   kvm_web:
-    image: keg-volume-monitor:dev
+    image: keg-volume-monitors:dev
     expose:
       - 5000
     ports:
@@ -51,7 +51,7 @@ services:
       start_period: 10s
     command: -p 5433
   kvm_db-data-seed:
-    image: keg-volume-monitor-db-seed:dev
+    image: keg-volume-monitors-db-seed:dev
     depends_on:
       kvm_postgres:
         condition: service_healthy

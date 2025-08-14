@@ -1,4 +1,4 @@
-FROM keg-volume-monitor:dev as python-build
+FROM keg-volume-monitors:dev as python-build
 
 USER 0
 
